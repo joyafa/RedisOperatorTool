@@ -1,0 +1,2035 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redis Operator</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1a1a2e;--sidebar:#16213e;--card:#0f3460;--card-hover:#112a50;
+  --text:#e0e0e0;--text-dim:#8892a4;--text-bright:#ffffff;
+  --accent:#e74c3c;--accent-hover:#c0392b;--blue:#3498db;--blue-hover:#2980b9;
+  --green:#2ecc71;--orange:#f39c12;--cyan:#1abc9c;--purple:#9b59b6;--pink:#e91e8c;
+  --input-bg:#0d1b36;--border:#1e3a5f;--border-light:#2a4a6f;
+  --radius:8px;--radius-sm:6px;--radius-xs:4px;
+  --shadow:0 2px 12px rgba(0,0,0,.3);--shadow-sm:0 1px 4px rgba(0,0,0,.2);
+  --transition:all .2s ease;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --mono:'JetBrains Mono','Fira Code',Consolas,'Courier New',monospace;
+  --sidebar-w:260px;
+}
+html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);font-size:20px;line-height:1.5;overflow:hidden}
+::-webkit-scrollbar{width:12px;height:12px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#2a3a5c;border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:#3a4a6c}
+
+/* Layout */
+.app{display:flex;height:100vh;width:100vw;overflow:hidden}
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.main{flex:1;display:flex;overflow:hidden}
+.key-panel{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden;min-width:280px}
+.detail-panel{width:40%;min-width:320px;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+
+/* Sidebar */
+.sidebar-header{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sidebar-header .logo{width:28px;height:28px;background:var(--accent);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:#fff}
+.sidebar-header h1{font-size:21px;font-weight:600;color:var(--text-bright);letter-spacing:.3px}
+.sidebar-header .version{font-size:17px;color:var(--text-dim);margin-left:auto}
+
+.sidebar-section{padding:12px}
+.sidebar-section+.sidebar-section{border-top:1px solid var(--border)}
+.section-title{font-size:17px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim);margin-bottom:10px}
+
+/* Inputs */
+.form-group{margin-bottom:8px}
+.form-group label{display:block;font-size:18px;color:var(--text-dim);margin-bottom:4px;font-weight:500}
+.form-row{display:flex;gap:6px}
+.form-row .form-group{flex:1}
+input[type="text"],input[type="number"],input[type="password"],select,textarea{
+  width:100%;padding:7px 10px;background:var(--input-bg);border:1px solid var(--border);
+  border-radius:var(--radius-xs);color:var(--text);font-size:19px;font-family:var(--font);
+  transition:var(--transition);outline:none
+}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(52,152,219,.2)}
+textarea{font-family:var(--mono);font-size:18px;resize:vertical}
+select{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238892a4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:28px;background-color:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);transition:var(--transition);outline:none}
+select:hover{border-color:var(--border-light)}
+select:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(52,152,219,.2)}
+select option{background:var(--sidebar);color:var(--text)}
+
+/* Password toggle */
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:32px}
+.pw-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px;font-size:19px}
+.pw-toggle:hover{color:var(--text)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 14px;border:none;border-radius:var(--radius-sm);font-size:19px;font-weight:500;cursor:pointer;transition:var(--transition);font-family:var(--font);white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{background:rgba(52,152,219,.1);color:#3498db;border:1px solid rgba(52,152,219,.3)}.btn-secondary:hover{background:rgba(52,152,219,.2);border-color:rgba(52,152,219,.5)}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:var(--blue-hover)}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#27ae60}
+.btn-sm{padding:4px 10px;font-size:18px}
+.btn-block{width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-icon{padding:5px 7px;font-size:19px;background:transparent;color:var(--text-dim);border:1px solid transparent;border-radius:var(--radius-xs)}
+.btn-icon:hover{color:var(--text);background:var(--border);border-color:var(--border-light)}
+
+/* Connection status */
+.conn-status{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:var(--radius-sm);font-size:18px;margin-top:8px}
+.conn-status.disconnected{background:rgba(231,76,60,.1);color:#e74c3c}
+.conn-status.connected{background:rgba(46,204,113,.1);color:#2ecc71}
+.conn-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.disconnected .conn-dot{background:#e74c3c;box-shadow:0 0 6px #e74c3c}
+.connected .conn-dot{background:#2ecc71;box-shadow:0 0 6px #2ecc71}
+.conn-info{font-size:17px;color:var(--text-dim);margin-top:4px;padding:0 4px}
+
+/* DB buttons */
+.db-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.db-btn{padding:6px 4px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text-dim);font-size:17px;cursor:pointer;transition:var(--transition);text-align:center;font-family:var(--font)}
+.db-btn:hover{border-color:var(--border-light);color:var(--text);background:var(--card)}
+.db-btn.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.db-btn .db-count{display:block;font-size:16px;opacity:.7;margin-top:1px}
+
+/* Key panel header */
+.panel-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;z-index:10}
+.panel-header h2{font-size:20px;font-weight:600;color:var(--text-bright);flex-shrink:0}
+.panel-header .key-count{font-size:18px;color:var(--text-dim);flex-shrink:0}
+.search-wrap{flex:1;max-width:360px;position:relative}
+.search-wrap input{padding-left:30px;font-family:var(--mono);font-size:18px}
+.search-wrap .search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:19px;pointer-events:none}
+
+/* Key list */
+.key-list{flex:1;overflow-y:auto;padding:4px 0}
+.key-tree{list-style:none;padding-left:0;margin:0}
+.key-tree-node{padding:0}
+.key-tree-item{display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;transition:var(--transition);border-bottom:none}
+.key-tree-item:hover{background:var(--card)}
+.key-tree-item.active{background:var(--card-hover);border-left:3px solid var(--blue)}
+.key-tree-item.selected{background:rgba(52,152,219,.08)}
+.key-tree-item.has-children{font-weight:500}
+.key-tree-indent{display:inline-block;width:18px;flex-shrink:0}
+.key-tree-expand{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;color:var(--text-dim);font-size:12px;transition:transform .2s}
+.key-tree-expand.expanded{transform:rotate(90deg)}
+.key-tree-expand:hover{color:var(--text)}
+.key-tree-check{flex-shrink:0;accent-color:var(--blue);width:20px;height:20px;cursor:pointer}
+.key-tree-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+.key-tree-icon.folder{color:#f39c12}
+.key-tree-icon.key{color:#3498db}
+.key-tree-name{flex:1;font-family:var(--mono);font-size:16px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.key-tree-meta{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.key-tree-count{font-size:14px;color:var(--text-dim);font-family:var(--mono)}
+.key-tree-ttl{font-size:14px;color:var(--text-dim)}
+.key-tree-ttl.persistent{color:var(--text-dim);font-style:italic}
+.key-tree-actions{display:flex;gap:2px;opacity:0;transition:var(--transition)}
+.key-tree-item:hover .key-tree-actions{opacity:1}
+.key-tree-children{display:none;padding-left:24px}
+.key-tree-children.expanded{display:block}
+
+/* Flat list (for compatibility) */
+.key-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;transition:var(--transition);border-bottom:1px solid rgba(30,58,95,.3)}
+.key-item:hover{background:var(--card)}
+.key-item.active{background:var(--card-hover);border-left:3px solid var(--blue)}
+.key-item.selected{background:rgba(52,152,219,.08)}
+.key-index{flex-shrink:0;width:32px;text-align:right;font-size:17px;color:var(--text-dim);font-family:var(--mono);opacity:.5}
+.key-check{flex-shrink:0;accent-color:var(--blue);width:20px;height:20px;cursor:pointer}
+.key-name{flex:1;font-family:var(--mono);font-size:18px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.key-meta{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.key-ttl{font-size:17px;color:var(--text-dim)}
+.key-ttl.persistent{color:var(--text-dim);font-style:italic}
+.key-actions{display:flex;gap:2px;opacity:0;transition:var(--transition)}
+.key-item:hover .key-actions{opacity:1}
+
+/* Type badge */
+.badge{padding:2px 8px;border-radius:10px;font-size:16px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.badge-string{background:rgba(52,152,219,.15);color:#3498db}
+.badge-list{background:rgba(46,204,113,.15);color:#2ecc71}
+.badge-hash{background:rgba(243,156,18,.15);color:#f39c12}
+.badge-set{background:rgba(155,89,182,.15);color:#9b59b6}
+.badge-zset{background:rgba(26,188,156,.15);color:#1abc9c}
+.badge-stream{background:rgba(233,30,140,.15);color:#e91e8c}
+
+/* Detail panel */
+.detail-header{padding:16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.detail-header .detail-key{font-family:var(--mono);font-size:20px;color:var(--text-bright);word-break:break-all}
+.detail-header .detail-meta{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+.detail-header .detail-actions{display:flex;gap:6px;margin-top:10px}
+.ttl-display{font-size:18px;color:var(--text-dim);display:flex;align-items:center;gap:4px}
+.ttl-display .ttl-val{color:var(--orange);font-weight:500}
+
+/* Detail content */
+.detail-content{flex:1;overflow-y:auto;padding:16px}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-dim);gap:12px}
+.empty-state .empty-icon{font-size:54px;opacity:.3}
+.empty-state p{font-size:20px}
+
+/* Data tables */
+.data-table{width:100%;border-collapse:collapse;font-size:19px}
+.data-table th{text-align:left;padding:8px 12px;font-size:17px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg)}
+.data-table td{padding:8px 12px;border-bottom:1px solid rgba(30,58,95,.2);vertical-align:top}
+.data-table tr:hover td{background:rgba(15,52,96,.3)}
+.data-table .field-name{font-family:var(--mono);color:var(--text-bright);font-size:18px}
+.data-table .field-value{font-family:var(--mono);color:var(--text);font-size:18px;word-break:break-all;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.data-table .score-val{font-family:var(--mono);color:var(--orange);font-weight:500}
+.data-table .index-col{color:var(--text-dim);font-size:17px;width:50px}
+.data-table .row-actions{opacity:0;transition:var(--transition)}
+.data-table tr:hover .row-actions{opacity:1}
+
+/* String value viewer */
+.string-viewer{position:relative}
+.string-raw{width:100%;min-height:200px;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);font-size:18px;line-height:1.6;resize:vertical;outline:none;tab-size:2}
+.string-raw:focus{border-color:var(--blue)}
+.json-viewer{width:100%;min-height:200px;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--mono);font-size:18px;line-height:1.6;overflow:auto;white-space:pre-wrap;word-break:break-all}
+.json-key{color:#3498db}
+.json-string{color:#2ecc71}
+.json-number{color:#f39c12}
+.json-boolean{color:#9b59b6}
+.json-null{color:#e74c3c}
+.view-toggle{display:flex;gap:0;margin-bottom:8px;border:1px solid var(--border);border-radius:var(--radius-xs);overflow:hidden;width:fit-content}
+.view-toggle button{padding:4px 12px;background:var(--input-bg);color:var(--text-dim);border:none;cursor:pointer;font-size:18px;transition:var(--transition);font-family:var(--font)}
+.view-toggle button.active{background:var(--blue);color:#fff}
+.view-toggle button:hover:not(.active){background:var(--border)}
+
+/* Inline add row */
+.add-row{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.add-row input{flex:1}
+
+/* Load more */
+.load-more-wrap{padding:12px 16px;text-align:center;flex-shrink:0}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:1000;opacity:0;transition:opacity .2s ease}
+.modal-overlay.show{display:flex;opacity:1}
+.modal{background:var(--sidebar);border:1px solid var(--border);border-radius:var(--radius);width:520px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow);position:relative;z-index:1001}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.modal-header h3{font-size:21px;font-weight:600;color:var(--text-bright)}
+.modal-close{margin-left:auto;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:24px;padding:4px;transition:var(--transition)}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+/* Dynamic fields for create modal */
+.dynamic-fields{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.dynamic-field-row{display:flex;gap:6px;align-items:center}
+.dynamic-field-row input{flex:1}
+.dynamic-field-row .field-label{font-size:17px;color:var(--text-dim);width:70px;flex-shrink:0;text-align:right}
+
+/* Toast */
+.toast-container{position:fixed;top:16px;right:16px;z-index:2000;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:10px 16px;border-radius:var(--radius-sm);font-size:19px;box-shadow:var(--shadow);pointer-events:auto;animation:toastIn .3s ease;max-width:360px;display:flex;align-items:center;gap:8px}
+.toast.success{background:rgba(46,204,113,.15);border:1px solid rgba(46,204,113,.3);color:#2ecc71}
+.toast.error{background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);color:#e74c3c}
+.toast.info{background:rgba(52,152,219,.15);border:1px solid rgba(52,152,219,.3);color:#3498db}
+.toast.hide{animation:toastOut .3s ease forwards}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
+
+/* Loading spinner */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border-light);border-top-color:var(--blue);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn .spinner{width:12px;height:12px;border-width:2px;border-color:rgba(255,255,255,.3);border-top-color:#fff}
+
+/* Context menu */
+.ctx-menu{position:fixed;background:var(--sidebar);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow);padding:4px;z-index:999;min-width:160px;display:none}
+.ctx-menu.show{display:block}
+.ctx-menu-item{padding:6px 12px;font-size:19px;color:var(--text);cursor:pointer;border-radius:var(--radius-xs);transition:var(--transition);display:flex;align-items:center;gap:8px}
+.ctx-menu-item:hover{background:var(--card);color:var(--text-bright)}
+.ctx-menu-item.danger{color:#e74c3c}
+.ctx-menu-item.danger:hover{background:rgba(231,76,60,.1)}
+.ctx-menu-sep{height:1px;background:var(--border);margin:4px 0}
+
+/* Stream entries */
+.stream-entry{margin-bottom:12px;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.stream-entry-header{padding:8px 12px;background:var(--card);font-family:var(--mono);font-size:18px;color:var(--text-bright);display:flex;align-items:center;gap:8px}
+.stream-entry-header .entry-id{color:var(--orange)}
+.stream-entry-body{padding:8px 12px}
+
+/* Responsive adjustments */
+@media(max-width:1200px){
+  .detail-panel{width:35%;min-width:280px}
+}
+@media(max-width:900px){
+  .app{flex-direction:column}
+  .sidebar{width:100%;min-width:auto;max-height:45vh;flex-direction:row;overflow-x:auto;overflow-y:hidden}
+  .main{flex-direction:column}
+  .key-panel{min-width:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .detail-panel{width:100%;min-width:auto}
+}
+
+/* Subtle animations */
+.key-item{transition:background .15s ease,border-color .15s ease}
+.btn{transition:background .15s ease,color .15s ease,transform .1s ease,opacity .15s ease}
+.badge{transition:background .15s ease}
+.db-btn{transition:background .15s ease,border-color .15s ease,color .15s ease}
+
+/* Sidebar copyright */
+.sidebar-copyright{margin-top:auto;padding:10px 16px;border-top:1px solid var(--border);font-size:17px;color:var(--text-dim);text-align:center;line-height:1.4;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Left Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">R</div>
+      <h1>Redis Operator</h1>
+      <span class="version">v1.0</span>
+    </div>
+
+    <!-- Connection Panel -->
+    <div class="sidebar-section" id="connectionPanel">
+      <div class="section-title">Connection</div>
+      <div class="form-group">
+        <label>Host</label>
+        <input type="text" id="inputHost" value="127.0.0.1" placeholder="127.0.0.1">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Port</label>
+          <input type="number" id="inputPort" value="6379" placeholder="6379">
+        </div>
+        <div class="form-group">
+          <label>DB</label>
+          <select id="inputDb">
+            <option value="0" selected>db0</option>
+            <option value="1">db1</option>
+            <option value="2">db2</option>
+            <option value="3">db3</option>
+            <option value="4">db4</option>
+            <option value="5">db5</option>
+            <option value="6">db6</option>
+            <option value="7">db7</option>
+            <option value="8">db8</option>
+            <option value="9">db9</option>
+            <option value="10">db10</option>
+            <option value="11">db11</option>
+            <option value="12">db12</option>
+            <option value="13">db13</option>
+            <option value="14">db14</option>
+            <option value="15">db15</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="inputPassword" placeholder="(optional)">
+          <button class="pw-toggle" onclick="togglePassword()" title="Show/Hide password">&#128065;</button>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" id="btnConnect" onclick="handleConnect()">
+        Connect
+      </button>
+      <div id="connStatus" class="conn-status disconnected">
+        <span class="conn-dot"></span>
+        <span id="connStatusText">Disconnected</span>
+      </div>
+      <div id="connInfo" class="conn-info" style="display:none"></div>
+    </div>
+
+    <!-- Database Selector -->
+    <div class="sidebar-section" id="dbSection" style="display:none">
+      <div class="section-title">Databases</div>
+      <div class="db-grid" id="dbGrid"></div>
+    </div>
+
+    <!-- Copyright -->
+    <div class="sidebar-copyright">
+      Copyright &copy; 2026 南昌市星纬智创科技有限公司. All rights reserved.
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+    <!-- Key List Panel -->
+    <div class="key-panel">
+      <div class="panel-header">
+        <h2>Keys</h2>
+        <span class="key-count" id="keyCount">0 keys</span>
+        <div class="search-wrap">
+          <span class="search-icon">&#128269;</span>
+          <input type="text" id="searchInput" placeholder="输入 key 名称查找，支持 * 模糊匹配" value="*">
+        </div>
+        <select id="typeFilter" onchange="applyTypeFilter()" style="width:auto;min-width:100px;padding:5px 28px 5px 8px;font-size:18px">
+          <option value="all">All Types</option>
+          <option value="string">String</option>
+          <option value="list">List</option>
+          <option value="hash">Hash</option>
+          <option value="set">Set</option>
+          <option value="zset">ZSet</option>
+          <option value="stream">Stream</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="showCreateModal()">+ Add Key</button>
+      </div>
+      <div class="key-list" id="keyList">
+        <div class="empty-state" id="keyEmptyState">
+          <div class="empty-icon">&#128272;</div>
+          <p>Not connected. Enter connection details and click Connect.</p>
+        </div>
+      </div>
+      <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+        <button class="btn btn-secondary btn-block" id="btnLoadMore" onclick="loadMoreKeys()">Load More</button>
+      </div>
+      <div style="padding:8px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0" id="batchBar" hidden>
+        <label style="font-size:18px;color:var(--text-dim);display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" id="selectAll" style="accent-color:var(--blue);width:14px;height:14px" onclick="toggleSelectAll()">
+          Select All
+        </label>
+        <span id="selectedCount" style="font-size:18px;color:var(--text-dim);margin-left:auto"></span>
+        <button class="btn btn-sm" style="background:rgba(231,76,60,.15);color:#e74c3c" onclick="batchDelete()">Delete Selected</button>
+      </div>
+    </div>
+
+    <!-- Detail Panel -->
+    <div class="detail-panel">
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:8px">
+        <span style="font-size:18px;color:var(--text-dim);white-space:nowrap">快速查找 Key:</span>
+        <input type="text" id="quickKeyInput" placeholder="输入 key 名称，回车查看" style="padding:5px 10px;font-family:var(--mono);font-size:18px" onkeydown="if(event.key==='Enter')quickLookupKey()">
+        <button class="btn btn-sm btn-blue" onclick="quickLookupKey()">查找</button>
+      </div>
+      <div class="detail-content" id="detailContent">
+        <div class="empty-state">
+          <div class="empty-icon">&#128196;</div>
+          <p>输入 key 名称查找，或从左侧列表点击选择</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Key Modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Create New Key</h3>
+      <button class="modal-close" onclick="closeCreateModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Key Name</label>
+        <input type="text" id="createKeyName" placeholder="mykey">
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="createKeyType" onchange="onCreateTypeChange()">
+          <option value="string">String</option>
+          <option value="list">List</option>
+          <option value="hash">Hash</option>
+          <option value="set">Set</option>
+          <option value="zset">ZSet (Sorted Set)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>TTL (seconds, 0 = no expiry)</label>
+        <input type="number" id="createKeyTTL" value="0" min="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Value</label>
+        <div id="createValueArea">
+          <textarea id="createStringValue" rows="4" placeholder="Enter string value..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
+      <button class="btn btn-primary" id="btnCreate" onclick="handleCreate()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Context Menu -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-menu-item" onclick="ctxAction('rename')">&#9998; Rename</div>
+  <div class="ctx-menu-item" onclick="ctxAction('ttl')">&#9200; Set TTL</div>
+  <div class="ctx-menu-sep"></div>
+  <div class="ctx-menu-item danger" onclick="ctxAction('delete')">&#128465; Delete</div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ================================================================
+   State
+================================================================ */
+const S = {
+  connId: null,
+  connected: false,
+  currentDb: 0,
+  currentKey: null,
+  currentData: null,
+  keys: [],
+  cursor: 0,
+  hasMore: false,
+  selectedKeys: new Set(),
+  expandedPaths: new Set(),
+  dbSizes: new Array(16).fill(-1),
+  redisVersion: '',
+  ctxTarget: null,
+  searchPattern: '*',
+  typeFilter: 'all',
+  stringViewMode: 'raw', // 'raw' | 'json'
+  editing: false,
+  loading: false,
+  autoLoading: false,
+  isUserInteracting: false,
+  pendingRender: false,
+};
+
+const API = '/api';
+
+let userInteractionTimer;
+
+function startUserInteraction() {
+  S.isUserInteracting = true;
+  clearTimeout(userInteractionTimer);
+  userInteractionTimer = setTimeout(() => {
+    S.isUserInteracting = false;
+    if (S.autoLoading && S.hasMore) {
+      scheduleNextBatch();
+    }
+  }, 1500);
+}
+
+document.addEventListener('mousemove', startUserInteraction);
+document.addEventListener('mousedown', startUserInteraction);
+document.addEventListener('keydown', startUserInteraction);
+document.addEventListener('scroll', startUserInteraction);
+
+/* ================================================================
+   API Call
+================================================================ */
+async function apiCall(endpoint, body) {
+  const startTime = Date.now();
+  try {
+    const res = await fetch(`${API}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      timeout: 30000,
+    });
+    
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    let msg = err.message;
+    if (msg.includes('Failed to fetch')) {
+      msg = '无法连接到服务器，请检查应用是否正常启动';
+    } else if (msg.includes('network error') || msg.includes('NetworkError')) {
+      msg = '网络连接错误，请检查网络连接';
+    } else if (msg.includes('timeout')) {
+      msg = '请求超时，请稍后重试';
+    } else if (msg.includes('CORS')) {
+      msg = '跨域请求被阻止，请检查服务器配置';
+    }
+    throw new Error(msg);
+  }
+}
+
+/* ================================================================
+   Toast Notifications
+================================================================ */
+function toast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = msg;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('hide');
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
+}
+
+/* ================================================================
+   Password Toggle
+================================================================ */
+function togglePassword() {
+  const inp = document.getElementById('inputPassword');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+/* ================================================================
+   Connection
+================================================================ */
+async function handleConnect() {
+  const btn = document.getElementById('btnConnect');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Connecting...';
+
+  const host = document.getElementById('inputHost').value.trim();
+  const port = parseInt(document.getElementById('inputPort').value) || 6379;
+  const password = document.getElementById('inputPassword').value;
+  const db = parseInt(document.getElementById('inputDb').value) || 0;
+
+  try {
+    const res = await apiCall('/connect', { host, port, password, db });
+    if (res.success) {
+      S.connId = res.connId;
+      S.connected = true;
+      S.currentDb = db;
+      S.redisVersion = res.version;
+      updateConnStatus(true);
+      toast('Connected to Redis successfully', 'success');
+      await loadDatabases();
+      await refreshKeys();
+    } else {
+      toast(`Connection failed: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Connection error: ${err.message}`, 'error');
+  } finally {
+    // Only reset button if not connected (updateConnStatus handles the connected state)
+    if (!S.connected) {
+      btn.disabled = false;
+      btn.textContent = 'Connect';
+    }
+  }
+}
+
+async function handleDisconnect() {
+  if (!S.connId) return;
+  try {
+    S.autoLoading = false;
+    await apiCall('/disconnect', { connId: S.connId });
+    S.connId = null;
+    S.connected = false;
+    S.currentKey = null;
+    S.currentData = null;
+    S.keys = [];
+    S.cursor = 0;
+    S.selectedKeys.clear();
+    updateConnStatus(false);
+    renderKeyList();
+    renderDetail();
+    document.getElementById('dbSection').style.display = 'none';
+    toast('Disconnected', 'info');
+  } catch (err) {
+    toast(`Disconnect error: ${err.message}`, 'error');
+  }
+}
+
+function updateConnStatus(connected) {
+  const statusEl = document.getElementById('connStatus');
+  const textEl = document.getElementById('connStatusText');
+  const infoEl = document.getElementById('connInfo');
+  const btn = document.getElementById('btnConnect');
+
+  if (connected) {
+    statusEl.className = 'conn-status connected';
+    textEl.textContent = 'Connected';
+    btn.textContent = 'Connected';
+    btn.disabled = true;
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-secondary');
+    infoEl.style.display = 'block';
+    infoEl.innerHTML = `
+      <div>Redis ${S.redisVersion} | ${S.connId}</div>
+      <button class="btn btn-sm" style="background:rgba(231,76,60,.15);color:#e74c3c;margin-top:4px" onclick="handleDisconnect()">Disconnect</button>
+    `;
+  } else {
+    statusEl.className = 'conn-status disconnected';
+    textEl.textContent = 'Disconnected';
+    infoEl.style.display = 'none';
+    btn.textContent = 'Connect';
+    btn.disabled = false;
+    btn.classList.remove('btn-secondary');
+    btn.classList.add('btn-primary');
+  }
+}
+
+/* ================================================================
+   Database Selector
+================================================================ */
+async function loadDatabases() {
+  if (!S.connId) return;
+  try {
+    const res = await apiCall('/databases', { connId: S.connId });
+    if (res.success) {
+      S.dbSizes = new Array(16).fill(0);
+      for (const d of res.databases) {
+        S.dbSizes[d.db] = d.keys;
+      }
+      renderDbGrid();
+      document.getElementById('dbSection').style.display = 'block';
+    }
+  } catch (err) {
+    console.error('Failed to load databases:', err);
+  }
+}
+
+function renderDbGrid() {
+  const grid = document.getElementById('dbGrid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const btn = document.createElement('button');
+    btn.className = `db-btn${i === S.currentDb ? ' active' : ''}`;
+    btn.innerHTML = `db${i}<span class="db-count">${S.dbSizes[i] >= 0 ? S.dbSizes[i] : '?'}</span>`;
+    btn.onclick = () => selectDb(i);
+    grid.appendChild(btn);
+  }
+}
+
+async function selectDb(db) {
+  if (!S.connId || db === S.currentDb) return;
+  try {
+    const res = await apiCall('/select-db', { connId: S.connId, db });
+    if (res.success) {
+      S.currentDb = db;
+      document.getElementById('inputDb').value = db;
+      renderDbGrid();
+      await refreshKeys();
+      toast(`Switched to db${db} (${res.keysCount} keys)`, 'info');
+    } else {
+      toast(`Failed to switch db: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+/* ================================================================
+   Type Filter
+================================================================ */
+function applyTypeFilter() {
+  S.typeFilter = document.getElementById('typeFilter').value;
+  renderKeyList();
+}
+
+/* ================================================================
+   Key List
+================================================================ */
+async function refreshKeys() {
+  S.keys = [];
+  S.cursor = 0;
+  S.selectedKeys.clear();
+  S.currentKey = null;
+  S.currentData = null;
+  S.autoLoading = false;
+
+  let pattern = document.getElementById('searchInput').value.trim() || '*';
+  if (pattern !== '*' && !pattern.includes('*') && !pattern.includes('?')) {
+    pattern = pattern + '*';
+  }
+  S.searchPattern = pattern;
+
+  try {
+    const res = await apiCall('/keys', { connId: S.connId, pattern, cursor: 0, count: 100 });
+    if (res.success) {
+      S.keys = res.keys;
+      S.cursor = res.cursor;
+      S.hasMore = res.hasMore;
+      if (S.hasMore) {
+        S.autoLoading = true;
+        scheduleNextBatch();
+      }
+    } else {
+      toast(`Failed to load keys: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error loading keys: ${err.message}`, 'error');
+  }
+
+  renderKeyList();
+  renderDetail();
+}
+
+function scheduleNextBatch() {
+  if (!S.autoLoading || !S.hasMore || !S.connId) return;
+  
+  setTimeout(async () => {
+    if (!S.autoLoading || !S.hasMore || !S.connId) return;
+    
+    if (S.isUserInteracting) {
+      scheduleNextBatch();
+      return;
+    }
+    
+    try {
+      const res = await apiCall('/keys', { connId: S.connId, pattern: S.searchPattern, cursor: S.cursor, count: 100 });
+      if (res.success) {
+        S.keys.push(...res.keys);
+        S.cursor = res.cursor;
+        S.hasMore = res.hasMore;
+        
+        if (!S.pendingRender) {
+          S.pendingRender = true;
+          requestAnimationFrame(() => {
+            renderKeyList();
+            S.pendingRender = false;
+          });
+        }
+        
+        if (S.hasMore) {
+          scheduleNextBatch();
+        } else {
+          S.autoLoading = false;
+        }
+      } else {
+        S.autoLoading = false;
+      }
+    } catch (err) {
+      S.autoLoading = false;
+    }
+  }, 300);
+}
+
+async function loadMoreKeys() {
+  if (!S.connId || !S.hasMore || S.loadingKeys) return;
+  S.loadingKeys = true;
+  
+  const btn = document.getElementById('btnLoadMore');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Loading...';
+
+  try {
+    const res = await apiCall('/keys', { connId: S.connId, pattern: S.searchPattern, cursor: S.cursor, count: 100 });
+    if (res.success) {
+      S.keys.push(...res.keys);
+      S.cursor = res.cursor;
+      S.hasMore = res.hasMore;
+      renderKeyList();
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  } finally {
+    S.loadingKeys = false;
+    btn.disabled = false;
+    btn.textContent = 'Load More';
+  }
+}
+
+function buildKeyTree(keys) {
+  const root = { children: {} };
+  
+  for (const item of keys) {
+    const parts = item.key.split(':');
+    let current = root;
+    
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
+      
+      if (!current.children[part]) {
+        current.children[part] = {
+          name: part,
+          fullKey: isLast ? item.key : null,
+          item: isLast ? item : null,
+          children: {},
+          count: 0
+        };
+      }
+      
+      if (!isLast) {
+        current.children[part].count++;
+      }
+      current = current.children[part];
+    }
+  }
+  
+  return root;
+}
+
+function renderKeyTree(node, depth = 0, parentPath = '') {
+  const ul = document.createElement('ul');
+  ul.className = depth === 0 ? 'key-tree' : 'key-tree-children';
+  
+  const entries = Object.entries(node.children).sort((a, b) => {
+    if (a[1].fullKey && !b[1].fullKey) return 1;
+    if (!a[1].fullKey && b[1].fullKey) return -1;
+    return a[0].localeCompare(b[0]);
+  });
+  
+  for (const [name, child] of entries) {
+    const li = document.createElement('li');
+    li.className = 'key-tree-node';
+    
+    const currentPath = parentPath ? `${parentPath}:${name}` : name;
+    const isExpanded = S.expandedPaths.has(currentPath);
+    
+    const div = document.createElement('div');
+    div.className = `key-tree-item${child.fullKey ? '' : ' has-children'}${child.fullKey && child.item?.key === S.currentKey ? ' active' : ''}${child.fullKey && S.selectedKeys.has(child.item?.key) ? ' selected' : ''}`;
+    
+    let expandHtml = '';
+    if (Object.keys(child.children).length > 0) {
+      const expandClass = isExpanded ? 'expanded' : '';
+      expandHtml = `<span class="key-tree-expand ${expandClass}" onclick="event.stopPropagation();toggleTreeNode(this, '${escapeAttr(currentPath)}')">▶</span>`;
+    } else {
+      expandHtml = `<span class="key-tree-indent"></span>`;
+    }
+    
+    let checkHtml = '';
+    if (child.fullKey && child.item) {
+      const isChecked = S.selectedKeys.has(child.item.key);
+      checkHtml = `<input type="checkbox" class="key-tree-check" ${isChecked ? 'checked' : ''} onchange="event.stopPropagation();toggleSelectKey('${escapeAttr(child.item.key)}')">`;
+    }
+    
+    const icon = child.fullKey ? '🔑' : '📁';
+    const iconClass = child.fullKey ? 'key' : 'folder';
+    
+    let metaHtml = '';
+    if (!child.fullKey && child.count > 0) {
+      metaHtml = `<span class="key-tree-count">(${child.count})</span>`;
+    }
+    if (child.fullKey && child.item) {
+      const ttlText = child.item.ttl === -1 ? 'persist' : formatTTL(child.item.ttl);
+      const ttlClass = child.item.ttl === -1 ? 'persistent' : '';
+      metaHtml = `<span class="badge badge-${child.item.type}">${child.item.type}</span><span class="key-tree-ttl ${ttlClass}">${ttlText}</span>`;
+    }
+    
+    let actionsHtml = '';
+    if (child.fullKey && child.item) {
+      actionsHtml = `
+        <div class="key-tree-actions">
+          <button class="btn-icon" title="Rename" onclick="event.stopPropagation();promptRename('${escapeAttr(child.item.key)}')">&#9998;</button>
+          <button class="btn-icon" title="Set TTL" onclick="event.stopPropagation();promptSetTTL('${escapeAttr(child.item.key)}')">&#9200;</button>
+          <button class="btn-icon" title="Delete" onclick="event.stopPropagation();deleteKey('${escapeAttr(child.item.key)}')">&#128465;</button>
+        </div>
+      `;
+    }
+    
+    div.innerHTML = `
+      ${expandHtml}
+      ${checkHtml}
+      <span class="key-tree-icon ${iconClass}">${icon}</span>
+      <span class="key-tree-name" title="${child.fullKey ? escapeHtml(child.fullKey) : ''}">${escapeHtml(name)}</span>
+      <div class="key-tree-meta">${metaHtml}</div>
+      ${actionsHtml}
+    `;
+    
+    if (child.fullKey) {
+      div.addEventListener('click', () => selectKey(child.item.key));
+      div.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showCtxMenu(e, child.item.key);
+      });
+    }
+    
+    li.appendChild(div);
+    
+    if (Object.keys(child.children).length > 0) {
+      const childrenUl = renderKeyTree(child, depth + 1, currentPath);
+      if (isExpanded) {
+        childrenUl.classList.add('expanded');
+      }
+      li.appendChild(childrenUl);
+    }
+    
+    ul.appendChild(li);
+  }
+  
+  return ul;
+}
+
+function toggleTreeNode(el, path) {
+  el.classList.toggle('expanded');
+  const parentLi = el.closest('.key-tree-node');
+  const childrenUl = parentLi.querySelector('.key-tree-children');
+  if (childrenUl) {
+    childrenUl.classList.toggle('expanded');
+  }
+  
+  if (path) {
+    if (S.expandedPaths.has(path)) {
+      S.expandedPaths.delete(path);
+    } else {
+      S.expandedPaths.add(path);
+    }
+  }
+}
+
+function renderKeyList() {
+  const container = document.getElementById('keyList');
+  const emptyState = document.getElementById('keyEmptyState');
+  const countEl = document.getElementById('keyCount');
+  const loadMoreWrap = document.getElementById('loadMoreWrap');
+  const batchBar = document.getElementById('batchBar');
+
+  if (!S.connected) {
+    container.innerHTML = '';
+    container.appendChild(createEmptyState('&#128272;', 'Not connected. Enter connection details and click Connect.'));
+    loadMoreWrap.style.display = 'none';
+    batchBar.hidden = true;
+    return;
+  }
+
+  if (S.keys.length === 0) {
+    container.innerHTML = '';
+    container.appendChild(createEmptyState('&#128269;', 'No keys found matching pattern.'));
+    loadMoreWrap.style.display = 'none';
+    batchBar.hidden = true;
+    return;
+  }
+
+  // Build tree and render
+  container.innerHTML = '';
+  const filtered = S.typeFilter === 'all' ? S.keys : S.keys.filter(k => k.type === S.typeFilter);
+  const tree = buildKeyTree(filtered);
+  const treeEl = renderKeyTree(tree);
+  container.appendChild(treeEl);
+
+  // Update key count to show filtered count
+  const totalText = S.typeFilter === 'all'
+    ? `${S.keys.length} keys`
+    : `${filtered.length}/${S.keys.length} keys`;
+  countEl.textContent = totalText;
+
+  loadMoreWrap.style.display = S.hasMore ? 'block' : 'none';
+  batchBar.hidden = false;
+  updateBatchBar();
+}
+
+function createKeyItem(item, index) {
+  const div = document.createElement('div');
+  div.className = `key-item${item.key === S.currentKey ? ' active' : ''}${S.selectedKeys.has(item.key) ? ' selected' : ''}`;
+  div.dataset.key = item.key;
+
+  const ttlText = item.ttl === -1 ? 'persist' : formatTTL(item.ttl);
+  const ttlClass = item.ttl === -1 ? 'persistent' : '';
+
+  div.innerHTML = `
+    <span class="key-index">${index + 1}</span>
+    <input type="checkbox" class="key-check" ${S.selectedKeys.has(item.key) ? 'checked' : ''} data-key="${escapeHtml(item.key)}">
+    <span class="key-name" title="${escapeHtml(item.key)}">${escapeHtml(item.key)}</span>
+    <div class="key-meta">
+      <span class="badge badge-${item.type}">${item.type}</span>
+      <span class="key-ttl ${ttlClass}">${ttlText}</span>
+      <div class="key-actions">
+        <button class="btn-icon" title="Rename" onclick="event.stopPropagation();promptRename('${escapeAttr(item.key)}')">&#9998;</button>
+        <button class="btn-icon" title="Set TTL" onclick="event.stopPropagation();promptSetTTL('${escapeAttr(item.key)}')">&#9200;</button>
+        <button class="btn-icon" title="Delete" onclick="event.stopPropagation();deleteKey('${escapeAttr(item.key)}')">&#128465;</button>
+      </div>
+    </div>
+  `;
+
+  div.addEventListener('click', (e) => {
+    if (e.target.classList.contains('key-check')) return;
+    selectKey(item.key);
+  });
+
+  div.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showCtxMenu(e, item.key);
+  });
+
+  // Checkbox handler
+  const cb = div.querySelector('.key-check');
+  cb.addEventListener('change', (e) => {
+    e.stopPropagation();
+    toggleKeySelection(item.key, e.target.checked);
+  });
+
+  return div;
+}
+
+function createEmptyState(icon, text) {
+  const div = document.createElement('div');
+  div.className = 'empty-state';
+  div.innerHTML = `<div class="empty-icon">${icon}</div><p>${text}</p>`;
+  return div;
+}
+
+function selectKey(key) {
+  S.currentKey = key;
+  S.editing = false;
+  S.stringViewMode = 'raw';
+  renderKeyList();
+  loadKeyDetail(key);
+}
+
+async function loadKeyDetail(key) {
+  if (!S.connId) return;
+  const detailEl = document.getElementById('detailContent');
+  detailEl.innerHTML = '<div class="empty-state"><div class="spinner" style="width:24px;height:24px;border-width:3px"></div><p>Loading...</p></div>';
+
+  try {
+    const res = await apiCall('/get', { connId: S.connId, key });
+    if (res.success) {
+      S.currentData = res;
+      renderDetail();
+    } else {
+      detailEl.innerHTML = `<div class="empty-state"><p style="color:#e74c3c">Error: ${escapeHtml(res.message)}</p></div>`;
+    }
+  } catch (err) {
+    detailEl.innerHTML = `<div class="empty-state"><p style="color:#e74c3c">Error: ${escapeHtml(err.message)}</p></div>`;
+  }
+}
+
+/* ================================================================
+   Detail Panel Rendering
+================================================================ */
+function renderDetail() {
+  const el = document.getElementById('detailContent');
+
+  if (!S.currentData) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128196;</div><p>Select a key to view details</p></div>';
+    return;
+  }
+
+  const { key, type, ttl, detail } = S.currentData;
+  const ttlText = ttl === -1 ? 'No expiry' : formatTTL(ttl);
+
+  let contentHtml = '';
+
+  switch (type) {
+    case 'string':
+      contentHtml = renderStringDetail(detail);
+      break;
+    case 'list':
+      contentHtml = renderListDetail(detail);
+      break;
+    case 'hash':
+      contentHtml = renderHashDetail(detail);
+      break;
+    case 'set':
+      contentHtml = renderSetDetail(detail);
+      break;
+    case 'zset':
+      contentHtml = renderZSetDetail(detail);
+      break;
+    case 'stream':
+      contentHtml = renderStreamDetail(detail);
+      break;
+    default:
+      contentHtml = `<div class="empty-state"><p>Unsupported type: ${escapeHtml(type)}</p></div>`;
+  }
+
+  el.innerHTML = `
+    <div class="detail-header">
+      <div class="detail-key" title="${escapeHtml(key)}">${escapeHtml(key)}</div>
+      <div class="detail-meta">
+        <span class="badge badge-${type}">${type}</span>
+        <span class="ttl-display">&#9200; <span class="ttl-val">${ttlText}</span></span>
+      </div>
+      <div class="detail-actions">
+        <button class="btn btn-sm btn-secondary" onclick="promptRename('${escapeAttr(key)}')">Rename</button>
+        <button class="btn btn-sm btn-secondary" onclick="promptSetTTL('${escapeAttr(key)}')">Set TTL</button>
+        <button class="btn btn-sm" style="background:rgba(231,76,60,.15);color:#e74c3c" onclick="deleteKey('${escapeAttr(key)}')">Delete</button>
+      </div>
+    </div>
+    <div class="detail-content" style="padding:16px">
+      ${contentHtml}
+    </div>
+  `;
+}
+
+/* --- String --- */
+function renderStringDetail(detail) {
+  const val = detail.value || '';
+  const isJson = detail.isJson;
+  const truncated = detail.value && detail.value.length > 100000;
+  let html = '';
+
+  if (isJson) {
+    html += `
+      <div class="view-toggle">
+        <button class="${S.stringViewMode === 'raw' ? 'active' : ''}" onclick="setStringView('raw')">Raw</button>
+        <button class="${S.stringViewMode === 'json' ? 'active' : ''}" onclick="setStringView('json')">Formatted JSON</button>
+      </div>
+    `;
+    if (S.stringViewMode === 'json') {
+      html += `<div class="json-viewer" id="jsonViewer">${syntaxHighlightJSON(detail.jsonValue)}</div>`;
+      if (S.editing) {
+        html += `
+          <div style="margin-top:10px">
+            <textarea class="string-raw" id="editStringArea" rows="8">${escapeHtml(JSON.stringify(detail.jsonValue, null, 2))}</textarea>
+            <div style="margin-top:8px;display:flex;gap:6px">
+              <button class="btn btn-sm btn-green" onclick="saveStringEdit()">Save</button>
+              <button class="btn btn-sm btn-secondary" onclick="cancelEdit()">Cancel</button>
+            </div>
+          </div>
+        `;
+      } else {
+        html += `<div style="margin-top:8px"><button class="btn btn-sm btn-blue" onclick="startStringEdit()">Edit</button></div>`;
+      }
+    } else {
+      html += `<textarea class="string-raw" rows="10" readonly>${escapeHtml(val)}</textarea>`;
+      if (S.editing) {
+        html += `
+          <div style="margin-top:8px;display:flex;gap:6px">
+            <button class="btn btn-sm btn-green" onclick="saveStringEdit()">Save</button>
+            <button class="btn btn-sm btn-secondary" onclick="cancelEdit()">Cancel</button>
+          </div>
+        `;
+      } else {
+        html += `<div style="margin-top:8px"><button class="btn btn-sm btn-blue" onclick="startStringEdit()">Edit</button></div>`;
+      }
+    }
+  } else {
+    html += `<textarea class="string-raw" rows="10" readonly>${escapeHtml(val)}</textarea>`;
+    if (S.editing) {
+      html += `
+        <div style="margin-top:8px;display:flex;gap:6px">
+          <button class="btn btn-sm btn-green" onclick="saveStringEdit()">Save</button>
+          <button class="btn btn-sm btn-secondary" onclick="cancelEdit()">Cancel</button>
+        </div>
+      `;
+    } else {
+      html += `<div style="margin-top:8px"><button class="btn btn-sm btn-blue" onclick="startStringEdit()">Edit</button></div>`;
+    }
+  }
+
+  if (truncated) {
+    html += `<div style="margin-top:6px;font-size:17px;color:var(--text-dim)">Value truncated (showing first 100KB)</div>`;
+  }
+
+  const sizeInfo = val ? `${new Blob([val]).size} bytes` : '(empty)';
+  html = `<div style="font-size:18px;color:var(--text-dim);margin-bottom:8px">${sizeInfo}</div>` + html;
+
+  return html;
+}
+
+function setStringView(mode) {
+  S.stringViewMode = mode;
+  S.editing = false;
+  renderDetail();
+}
+
+function startStringEdit() {
+  S.editing = true;
+  renderDetail();
+  const area = document.getElementById('editStringArea');
+  if (area) area.focus();
+}
+
+function cancelEdit() {
+  S.editing = false;
+  renderDetail();
+}
+
+async function saveStringEdit() {
+  const area = document.getElementById('editStringArea');
+  if (!area) return;
+  const val = area.value;
+  try {
+    const res = await apiCall('/set', { connId: S.connId, key: S.currentKey, value: val });
+    if (res.success) {
+      toast('Value updated', 'success');
+      S.editing = false;
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Save failed: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+/* --- List --- */
+function renderListDetail(detail) {
+  const items = detail.items || [];
+  const totalLen = detail.length || 0;
+  let html = `<div style="font-size:18px;color:var(--text-dim);margin-bottom:10px">${totalLen} items${totalLen > items.length ? ` (showing ${items.length})` : ''}</div>`;
+
+  if (items.length === 0) {
+    html += `<div class="empty-state" style="height:auto;padding:40px"><p>Empty list</p></div>`;
+  } else {
+    html += '<table class="data-table"><thead><tr><th style="width:50px">#</th><th>Value</th><th style="width:90px"></th></tr></thead><tbody>';
+    items.forEach((item, idx) => {
+      html += `<tr>
+        <td class="index-col">${idx}</td>
+        <td class="field-value" title="${escapeHtml(item)}">${escapeHtml(item)}</td>
+        <td class="row-actions">
+          <button class="btn-icon" title="Edit" onclick="listEditIndex(${idx})">&#9998;</button>
+          <button class="btn-icon" title="Remove" onclick="listRemoveIndex(${idx})">&#128465;</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  html += `
+    <div class="add-row">
+      <input type="text" id="listAddInput" placeholder="New value..." onkeydown="if(event.key==='Enter')listAdd()">
+      <select id="listAddDir" style="width:auto;min-width:60px;padding:5px 24px 5px 8px;font-size:18px">
+        <option value="right">Push Right</option>
+        <option value="left">Push Left</option>
+      </select>
+      <button class="btn btn-sm btn-blue" onclick="listAdd()">Add</button>
+    </div>
+  `;
+
+  return html;
+}
+
+function listEditIndex(index) {
+  if (!S.currentData || !S.currentData.detail.items) return;
+  const item = S.currentData.detail.items[index];
+  const newItem = prompt(`Edit list item [${index}]:`, item);
+  if (newItem === null || newItem === item) return;
+  listSetIndex(index, newItem);
+}
+
+async function listSetIndex(index, value) {
+  try {
+    const res = await apiCall('/list/set', { connId: S.connId, key: S.currentKey, index, value });
+    if (res.success) {
+      toast('Item updated', 'success');
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function listAdd() {
+  const inp = document.getElementById('listAddInput');
+  const dir = document.getElementById('listAddDir');
+  if (!inp || !inp.value.trim()) return;
+  try {
+    const res = await apiCall('/list/push', { connId: S.connId, key: S.currentKey, direction: dir ? dir.value : 'right', values: [inp.value.trim()] });
+    if (res.success) {
+      toast('Item added', 'success');
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function listRemoveIndex(index) {
+  if (!confirm(`Remove list item at index [${index}]?`)) return;
+  try {
+    const res = await apiCall('/list/remove-index', { connId: S.connId, key: S.currentKey, index });
+    if (res.success) {
+      toast('Item removed', 'success');
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+/* --- Hash --- */
+function renderHashDetail(detail) {
+  const fields = detail.fields || {};
+  const totalLen = detail.length || 0;
+  const entries = Object.entries(fields);
+  let html = `<div style="font-size:18px;color:var(--text-dim);margin-bottom:10px">${totalLen} fields${totalLen > entries.length ? ` (showing ${entries.length})` : ''}</div>`;
+
+  if (entries.length === 0) {
+    html += `<div class="empty-state" style="height:auto;padding:40px"><p>Empty hash</p></div>`;
+  } else {
+    html += '<table class="data-table"><thead><tr><th>Field</th><th>Value</th><th style="width:90px"></th></tr></thead><tbody>';
+    entries.forEach(([field, value]) => {
+      html += `<tr>
+        <td class="field-name" title="${escapeHtml(field)}">${escapeHtml(field)}</td>
+        <td class="field-value" title="${escapeHtml(value)}">${escapeHtml(value)}</td>
+        <td class="row-actions">
+          <button class="btn-icon" title="Edit value" onclick="hashEditField('${escapeAttr(field)}','${escapeAttr(value)}')">&#9998;</button>
+          <button class="btn-icon" title="Delete field" onclick="hashDelField('${escapeAttr(field)}')">&#128465;</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  html += `
+    <div class="add-row">
+      <input type="text" id="hashAddField" placeholder="Field" onkeydown="if(event.key==='Enter')document.getElementById('hashAddValue').focus()">
+      <input type="text" id="hashAddValue" placeholder="Value" onkeydown="if(event.key==='Enter')hashAddField()">
+      <button class="btn btn-sm btn-blue" onclick="hashAddField()">Add</button>
+    </div>
+  `;
+
+  return html;
+}
+
+async function hashAddField() {
+  const fInp = document.getElementById('hashAddField');
+  const vInp = document.getElementById('hashAddValue');
+  if (!fInp || !vInp || !fInp.value.trim()) return;
+  try {
+    const res = await apiCall('/hash/set', { connId: S.connId, key: S.currentKey, data: { [fInp.value.trim()]: vInp.value } });
+    if (res.success) {
+      toast('Field added', 'success');
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+function hashEditField(field, currentValue) {
+  const newVal = prompt(`Edit field "${field}":`, currentValue);
+  if (newVal === null || newVal === currentValue) return;
+  hashUpdateField(field, newVal);
+}
+
+async function hashUpdateField(field, value) {
+  try {
+    const res = await apiCall('/hash/set', { connId: S.connId, key: S.currentKey, data: { [field]: value } });
+    if (res.success) {
+      toast('Field updated', 'success');
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function hashDelField(field) {
+  try {
+    const res = await apiCall('/hash/del', { connId: S.connId, key: S.currentKey, fields: [field] });
+    if (res.success) {
+      toast('Field deleted', 'success');
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+/* --- Set --- */
+function renderSetDetail(detail) {
+  const members = detail.members || [];
+  const totalLen = detail.length || 0;
+  let html = `<div style="font-size:18px;color:var(--text-dim);margin-bottom:10px">${totalLen} members${totalLen > members.length ? ` (showing ${members.length})` : ''}</div>`;
+
+  if (members.length === 0) {
+    html += `<div class="empty-state" style="height:auto;padding:40px"><p>Empty set</p></div>`;
+  } else {
+    html += '<table class="data-table"><thead><tr><th>Member</th><th style="width:50px"></th></tr></thead><tbody>';
+    members.forEach((member) => {
+      html += `<tr>
+        <td class="field-value" title="${escapeHtml(member)}">${escapeHtml(member)}</td>
+        <td class="row-actions"><button class="btn-icon" title="Remove" onclick="setRemoveMember('${escapeAttr(member)}')">&#128465;</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  html += `
+    <div class="add-row">
+      <input type="text" id="setAddInput" placeholder="New member..." onkeydown="if(event.key==='Enter')setAddMember()">
+      <button class="btn btn-sm btn-blue" onclick="setAddMember()">Add</button>
+    </div>
+  `;
+
+  return html;
+}
+
+async function setAddMember() {
+  const inp = document.getElementById('setAddInput');
+  if (!inp || !inp.value.trim()) return;
+  try {
+    const res = await apiCall('/set/add', { connId: S.connId, key: S.currentKey, members: [inp.value.trim()] });
+    if (res.success) {
+      toast('Member added', 'success');
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function setRemoveMember(member) {
+  try {
+    const res = await apiCall('/set/remove', { connId: S.connId, key: S.currentKey, members: [member] });
+    if (res.success) {
+      toast('Member removed', 'success');
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+/* --- ZSet --- */
+function renderZSetDetail(detail) {
+  const items = detail.items || [];
+  const totalLen = detail.length || 0;
+  let html = `<div style="font-size:18px;color:var(--text-dim);margin-bottom:10px">${totalLen} members${totalLen > items.length ? ` (showing ${items.length})` : ''}</div>`;
+
+  if (items.length === 0) {
+    html += `<div class="empty-state" style="height:auto;padding:40px"><p>Empty sorted set</p></div>`;
+  } else {
+    html += '<table class="data-table"><thead><tr><th>Score</th><th>Member</th><th style="width:90px"></th></tr></thead><tbody>';
+    items.forEach(({ score, member }) => {
+      html += `<tr>
+        <td class="score-val">${score}</td>
+        <td class="field-value" title="${escapeHtml(member)}">${escapeHtml(member)}</td>
+        <td class="row-actions">
+          <button class="btn-icon" title="Edit score" onclick="zsetEditScore('${escapeAttr(member)}',${score})">&#9998;</button>
+          <button class="btn-icon" title="Remove" onclick="zsetRemoveMember('${escapeAttr(member)}')">&#128465;</button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  html += `
+    <div class="add-row">
+      <input type="number" id="zsetAddScore" placeholder="Score" step="any" onkeydown="if(event.key==='Enter')document.getElementById('zsetAddMember').focus()">
+      <input type="text" id="zsetAddMember" placeholder="Member" onkeydown="if(event.key==='Enter')zsetAddMember()">
+      <button class="btn btn-sm btn-blue" onclick="zsetAddMember()">Add</button>
+    </div>
+  `;
+
+  return html;
+}
+
+async function zsetAddMember() {
+  const sInp = document.getElementById('zsetAddScore');
+  const mInp = document.getElementById('zsetAddMember');
+  if (!sInp || !mInp || !mInp.value.trim()) return;
+  const score = parseFloat(sInp.value);
+  if (isNaN(score)) {
+    toast('Invalid score', 'error');
+    return;
+  }
+  try {
+    const res = await apiCall('/zset/add', { connId: S.connId, key: S.currentKey, members: [{ score, member: mInp.value.trim() }] });
+    if (res.success) {
+      toast('Member added', 'success');
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+function zsetEditScore(member, currentScore) {
+  const newScore = prompt(`Edit score for "${member}":`, String(currentScore));
+  if (newScore === null) return;
+  const score = parseFloat(newScore);
+  if (isNaN(score)) { toast('Invalid score', 'error'); return; }
+  zsetUpdateScore(member, score);
+}
+
+async function zsetUpdateScore(member, score) {
+  try {
+    const res = await apiCall('/zset/add', { connId: S.connId, key: S.currentKey, members: [{ score, member }] });
+    if (res.success) {
+      toast('Score updated', 'success');
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function zsetRemoveMember(member) {
+  try {
+    const res = await apiCall('/zset/remove', { connId: S.connId, key: S.currentKey, members: [member] });
+    if (res.success) {
+      toast('Member removed', 'success');
+      await loadKeyDetail(S.currentKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+/* --- Stream --- */
+function renderStreamDetail(detail) {
+  const entries = detail.entries || [];
+  const totalLen = detail.length || 0;
+  let html = `<div style="font-size:18px;color:var(--text-dim);margin-bottom:10px">${totalLen} entries${totalLen > entries.length ? ` (showing ${entries.length})` : ''}</div>`;
+
+  if (entries.length === 0) {
+    html += `<div class="empty-state" style="height:auto;padding:40px"><p>Empty stream</p></div>`;
+  } else {
+    entries.forEach(entry => {
+      html += '<div class="stream-entry">';
+      html += `<div class="stream-entry-header"><span class="entry-id">${escapeHtml(entry.id)}</span></div>`;
+      html += '<div class="stream-entry-body"><table class="data-table"><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>';
+      if (entry.fields) {
+        Object.entries(entry.fields).forEach(([f, v]) => {
+          html += `<tr><td class="field-name">${escapeHtml(f)}</td><td class="field-value">${escapeHtml(v)}</td></tr>`;
+        });
+      }
+      html += '</tbody></table></div></div>';
+    });
+  }
+
+  return html;
+}
+
+/* ================================================================
+   Key Actions
+================================================================ */
+async function deleteKey(key) {
+  if (!confirm(`Delete key "${key}"?`)) return;
+  try {
+    const res = await apiCall('/del', { connId: S.connId, keys: [key] });
+    if (res.success) {
+      toast(`Key "${key}" deleted`, 'success');
+      if (S.currentKey === key) {
+        S.currentKey = null;
+        S.currentData = null;
+        renderDetail();
+      }
+      await refreshKeys();
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+function promptRename(key) {
+  const newKey = prompt(`Rename key "${key}" to:`, key);
+  if (!newKey || newKey === key) return;
+  doRename(key, newKey);
+}
+
+async function doRename(oldKey, newKey) {
+  try {
+    const res = await apiCall('/rename', { connId: S.connId, oldKey, newKey });
+    if (res.success) {
+      toast(`Renamed to "${newKey}"`, 'success');
+      if (S.currentKey === oldKey) S.currentKey = newKey;
+      await refreshKeys();
+      if (S.currentKey === newKey) await loadKeyDetail(newKey);
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+function promptSetTTL(key) {
+  const sec = prompt(`Set TTL for "${key}" (seconds, -1 to persist):`, '3600');
+  if (sec === null) return;
+  const seconds = parseInt(sec);
+  if (isNaN(seconds)) { toast('Invalid TTL value', 'error'); return; }
+  doSetTTL(key, seconds);
+}
+
+async function doSetTTL(key, seconds) {
+  try {
+    if (seconds <= 0) {
+      // Use PERSIST equivalent: set very large TTL or -1 handling
+      toast('Note: Cannot persist via API. Use TTL of -1 in Redis CLI.', 'info');
+      return;
+    }
+    const res = await apiCall('/expire', { connId: S.connId, key, seconds });
+    if (res.success) {
+      toast(`TTL set to ${seconds}s`, 'success');
+      if (S.currentKey === key) await loadKeyDetail(key);
+      renderKeyList();
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+/* ================================================================
+   Batch Selection
+================================================================ */
+function toggleKeySelection(key, checked) {
+  if (checked) {
+    S.selectedKeys.add(key);
+  } else {
+    S.selectedKeys.delete(key);
+  }
+  updateBatchBar();
+  // Update visual
+  const items = document.querySelectorAll('.key-item');
+  items.forEach(item => {
+    item.classList.toggle('selected', S.selectedKeys.has(item.dataset.key));
+  });
+}
+
+function toggleSelectKey(key) {
+  if (S.selectedKeys.has(key)) {
+    S.selectedKeys.delete(key);
+  } else {
+    S.selectedKeys.add(key);
+  }
+  updateBatchBar();
+  const items = document.querySelectorAll('.key-tree-item');
+  items.forEach(item => {
+    const checkBox = item.querySelector('.key-tree-check');
+    if (checkBox && checkBox.getAttribute('onchange')?.includes(`'${key}'`)) {
+      item.classList.toggle('selected', S.selectedKeys.has(key));
+    }
+  });
+}
+
+function toggleSelectAll() {
+  const all = document.getElementById('selectAll').checked;
+  S.selectedKeys.clear();
+  if (all) {
+    S.keys.forEach(k => S.selectedKeys.add(k.key));
+  }
+  renderKeyList();
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const bar = document.getElementById('batchBar');
+  const countEl = document.getElementById('selectedCount');
+  if (S.selectedKeys.size > 0) {
+    countEl.textContent = `${S.selectedKeys.size} selected`;
+  } else {
+    countEl.textContent = '';
+  }
+}
+
+async function batchDelete() {
+  if (S.selectedKeys.size === 0) return;
+  if (!confirm(`Delete ${S.selectedKeys.size} key(s)?`)) return;
+  try {
+    const res = await apiCall('/del', { connId: S.connId, keys: [...S.selectedKeys] });
+    if (res.success) {
+      toast(`Deleted ${res.deleted} key(s)`, 'success');
+      S.selectedKeys.clear();
+      document.getElementById('selectAll').checked = false;
+      await refreshKeys();
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  }
+}
+
+/* ================================================================
+   Context Menu
+================================================================ */
+function showCtxMenu(e, key) {
+  S.ctxTarget = key;
+  const menu = document.getElementById('ctxMenu');
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+  menu.classList.add('show');
+}
+
+function hideCtxMenu() {
+  document.getElementById('ctxMenu').classList.remove('show');
+}
+
+function ctxAction(action) {
+  hideCtxMenu();
+  const key = S.ctxTarget;
+  if (!key) return;
+  switch (action) {
+    case 'rename': promptRename(key); break;
+    case 'ttl': promptSetTTL(key); break;
+    case 'delete': deleteKey(key); break;
+  }
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.ctx-menu')) hideCtxMenu();
+});
+
+/* ================================================================
+   Create Key Modal
+================================================================ */
+function showCreateModal() {
+  if (!S.connected) { toast('Please connect first', 'error'); return; }
+  document.getElementById('createModal').classList.add('show');
+  document.getElementById('createKeyName').value = '';
+  document.getElementById('createKeyType').value = 'string';
+  document.getElementById('createKeyTTL').value = '0';
+  onCreateTypeChange();
+  setTimeout(() => document.getElementById('createKeyName').focus(), 100);
+}
+
+function closeCreateModal() {
+  document.getElementById('createModal').classList.remove('show');
+}
+
+function onCreateTypeChange() {
+  const type = document.getElementById('createKeyType').value;
+  const area = document.getElementById('createValueArea');
+
+  switch (type) {
+    case 'string':
+      area.innerHTML = `<textarea id="createStringValue" rows="4" placeholder="Enter string value..."></textarea>`;
+      break;
+    case 'list':
+      area.innerHTML = `
+        <div class="dynamic-fields" id="dynamicFields">
+          <div style="font-size:18px;color:var(--text-dim);margin-bottom:4px">List items (one per line or add rows):</div>
+          <textarea id="createListValue" rows="4" placeholder="item1&#10;item2&#10;item3" style="font-family:var(--mono);font-size:18px"></textarea>
+        </div>
+      `;
+      break;
+    case 'hash':
+      area.innerHTML = `
+        <div class="dynamic-fields" id="dynamicFields">
+          <div style="font-size:18px;color:var(--text-dim);margin-bottom:4px">Hash fields:</div>
+          <div class="dynamic-field-row">
+            <input type="text" id="hashField0" placeholder="Field name">
+            <input type="text" id="hashValue0" placeholder="Value">
+          </div>
+        </div>
+        <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="addHashFieldRow()">+ Add Field</button>
+      `;
+      break;
+    case 'set':
+      area.innerHTML = `
+        <div class="dynamic-fields" id="dynamicFields">
+          <div style="font-size:18px;color:var(--text-dim);margin-bottom:4px">Set members (one per line):</div>
+          <textarea id="createSetValue" rows="4" placeholder="member1&#10;member2&#10;member3" style="font-family:var(--mono);font-size:18px"></textarea>
+        </div>
+      `;
+      break;
+    case 'zset':
+      area.innerHTML = `
+        <div class="dynamic-fields" id="dynamicFields">
+          <div style="font-size:18px;color:var(--text-dim);margin-bottom:4px">Sorted set members (score value, one per line):</div>
+          <div class="dynamic-field-row">
+            <input type="number" id="zsetScore0" placeholder="Score" step="any">
+            <input type="text" id="zsetMember0" placeholder="Member">
+          </div>
+        </div>
+        <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="addZSetFieldRow()">+ Add Member</button>
+      `;
+      break;
+  }
+}
+
+let hashFieldCount = 0;
+function addHashFieldRow() {
+  hashFieldCount++;
+  const container = document.getElementById('dynamicFields');
+  const row = document.createElement('div');
+  row.className = 'dynamic-field-row';
+  row.innerHTML = `
+    <input type="text" id="hashField${hashFieldCount}" placeholder="Field name">
+    <input type="text" id="hashValue${hashFieldCount}" placeholder="Value">
+    <button class="btn-icon" title="Remove" onclick="this.parentElement.remove()">&#128465;</button>
+  `;
+  container.appendChild(row);
+}
+
+let zsetFieldCount = 0;
+function addZSetFieldRow() {
+  zsetFieldCount++;
+  const container = document.getElementById('dynamicFields');
+  const row = document.createElement('div');
+  row.className = 'dynamic-field-row';
+  row.innerHTML = `
+    <input type="number" id="zsetScore${zsetFieldCount}" placeholder="Score" step="any">
+    <input type="text" id="zsetMember${zsetFieldCount}" placeholder="Member">
+    <button class="btn-icon" title="Remove" onclick="this.parentElement.remove()">&#128465;</button>
+  `;
+  container.appendChild(row);
+}
+
+async function handleCreate() {
+  const keyName = document.getElementById('createKeyName').value.trim();
+  if (!keyName) { toast('Key name is required', 'error'); return; }
+
+  const type = document.getElementById('createKeyType').value;
+  const ttl = parseInt(document.getElementById('createKeyTTL').value) || 0;
+
+  let value;
+  try {
+    switch (type) {
+      case 'string':
+        value = document.getElementById('createStringValue').value;
+        break;
+      case 'list':
+        value = document.getElementById('createListValue').value.split('\n').filter(s => s.trim());
+        break;
+      case 'hash': {
+        value = {};
+        const fields = document.querySelectorAll('#dynamicFields .dynamic-field-row');
+        fields.forEach(row => {
+          const f = row.querySelector('input[type="text"]').value.trim();
+          const v = row.querySelectorAll('input[type="text"]')[1]?.value || '';
+          if (f) value[f] = v;
+        });
+        break;
+      }
+      case 'set':
+        value = document.getElementById('createSetValue').value.split('\n').filter(s => s.trim());
+        break;
+      case 'zset': {
+        value = [];
+        const rows = document.querySelectorAll('#dynamicFields .dynamic-field-row');
+        rows.forEach(row => {
+          const score = parseFloat(row.querySelector('input[type="number"]').value);
+          const member = row.querySelector('input[type="text"]').value.trim();
+          if (!isNaN(score) && member) value.push({ score, member });
+        });
+        break;
+      }
+    }
+  } catch (err) {
+    toast(`Invalid value: ${err.message}`, 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btnCreate');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Creating...';
+
+  try {
+    const res = await apiCall('/create', { connId: S.connId, key: keyName, type, value });
+    if (res.success) {
+      toast(`Key "${keyName}" created`, 'success');
+      closeCreateModal();
+      if (ttl > 0) {
+        await apiCall('/expire', { connId: S.connId, key: keyName, seconds: ttl });
+      }
+      await refreshKeys();
+      // Also update db sizes
+      S.dbSizes[S.currentDb]++;
+      renderDbGrid();
+    } else {
+      toast(`Error: ${res.message}`, 'error');
+    }
+  } catch (err) {
+    toast(`Error: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create';
+  }
+}
+
+// Close modal on overlay click
+document.getElementById('createModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeCreateModal();
+});
+
+/* ================================================================
+   Search
+================================================================ */
+let searchTimer;
+document.getElementById('searchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => refreshKeys(), 150);
+  }
+});
+
+document.getElementById('searchInput').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => refreshKeys(), 500);
+});
+
+/* ================================================================
+   Quick Key Lookup
+================================================================ */
+async function quickLookupKey() {
+  const inp = document.getElementById('quickKeyInput');
+  if (!inp || !inp.value.trim()) { toast('请输入 key 名称', 'error'); return; }
+  if (!S.connected) { toast('请先连接 Redis', 'error'); return; }
+
+  const key = inp.value.trim();
+  S.currentKey = key;
+  S.editing = false;
+  S.stringViewMode = 'raw';
+  await loadKeyDetail(key);
+  // 高亮左侧列表中对应的 key（如果有）
+  renderKeyList();
+}
+
+/* ================================================================
+   JSON Syntax Highlighting
+================================================================ */
+function syntaxHighlightJSON(obj) {
+  if (obj === null) return '<span class="json-null">null</span>';
+  if (typeof obj === 'boolean') return `<span class="json-boolean">${obj}</span>`;
+  if (typeof obj === 'number') return `<span class="json-number">${obj}</span>`;
+  if (typeof obj === 'string') return `<span class="json-string">"${escapeHtml(obj)}"</span>`;
+
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return '[]';
+    let html = '[<br>';
+    obj.forEach((item, idx) => {
+      html += '  '.repeat(1) + syntaxHighlightJSON(item);
+      if (idx < obj.length - 1) html += ',';
+      html += '<br>';
+    });
+    html += ']';
+    return html;
+  }
+
+  if (typeof obj === 'object') {
+    const entries = Object.entries(obj);
+    if (entries.length === 0) return '{}';
+    let html = '{<br>';
+    entries.forEach(([key, val], idx) => {
+      html += '  '.repeat(1) + `<span class="json-key">"${escapeHtml(key)}"</span>: ${syntaxHighlightJSON(val)}`;
+      if (idx < entries.length - 1) html += ',';
+      html += '<br>';
+    });
+    html += '}';
+    return html;
+  }
+
+  return escapeHtml(String(obj));
+}
+
+/* ================================================================
+   Utility
+================================================================ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g, '&#039;');
+}
+
+function escapeAttr(str) {
+  return String(str).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"');
+}
+
+function formatTTL(seconds) {
+  if (seconds === -1) return 'persist';
+  if (seconds === -2) return 'expired';
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds/60)}m ${seconds%60}s`;
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  return days > 0 ? `${days}d ${hours}h` : `${hours}h ${Math.floor((seconds%3600)/60)}m`;
+}
+
+/* ================================================================
+   Keyboard shortcuts
+================================================================ */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeCreateModal();
+    hideCtxMenu();
+    if (S.editing) cancelEdit();
+  }
+});
+
+/* ================================================================
+   Init
+================================================================ */
+document.getElementById('searchInput').value = '*';
+</script>
+</body>
+</html>
