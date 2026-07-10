@@ -24,7 +24,7 @@
     "appId": "com.redisoperator.app",
     "productName": "Redis Operator",
     "directories": {
-      "output": "release"
+      "output": "build-20260710"
     },
     "files": [
       "electron/**/*",

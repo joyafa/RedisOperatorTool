@@ -4,6 +4,7 @@ dist/
 build-output/
 out/
 build/
+build-*/
 logs/
 *.log
 .DS_Store
