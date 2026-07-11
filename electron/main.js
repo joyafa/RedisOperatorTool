@@ -254,8 +254,8 @@ function createMenu() {
             dialog.showMessageBox({
               type: 'info',
               title: 'About Redis Operator',
-              message: 'Redis Operator v1.0.0',
-              detail: 'A lightweight Redis data management tool.\nSupports all Redis data types: String, List, Hash, Set, ZSet, Stream.',
+              message: 'Redis Operator v1.1.0',
+              detail: 'A lightweight Redis data management tool.\n\nSupported data types:\nString, List, Hash, Set, ZSet, Stream,\nBitmap, HyperLogLog, GEO, JSON, TimeSeries\n\nCopyright © 2026 南昌市星纬智创科技有限公司.\nAll rights reserved.',
             });
           },
         },

@@ -1,6 +1,6 @@
 {
   "name": "redis-operator",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Redis Operator - A lightweight Redis data management tool",
   "main": "electron/main.js",
   "scripts": {
@@ -24,7 +24,7 @@
     "appId": "com.redisoperator.app",
     "productName": "Redis Operator",
     "directories": {
-      "output": "build-20260710"
+      "output": "build-20260711-v2"
     },
     "files": [
       "electron/**/*",
@@ -72,13 +72,16 @@
       "artifactName": "Redis-Operator-${version}-${arch}.${ext}"
     },
     "nsis": {
-      "oneClick": true,
-      "allowToChangeInstallationDirectory": false,
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
       "perMachine": false,
       "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Redis Operator"
+      "shortcutName": "Redis Operator",
+      "installerIcon": "",
+      "uninstallerIcon": "",
+      "installerHeaderIcon": ""
     },
     "portable": {
       "artifactName": "Redis-Operator-Portable-${version}.${ext}",

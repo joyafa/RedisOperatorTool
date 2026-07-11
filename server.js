@@ -266,18 +266,21 @@ app.post('/api/keys', async (req, res) => {
       for (const key of keys) {
         pipeline.type(key);
         pipeline.ttl(key);
+        pipeline.hget(TYPE_META_KEY, key);
       }
       const results = await pipeline.exec();
 
       for (let i = 0; i < keys.length; i++) {
-        const typeResult = results[i * 2];
-        const ttlResult = results[i * 2 + 1];
+        const typeResult = results[i * 3];
+        const ttlResult = results[i * 3 + 1];
+        const metaResult = results[i * 3 + 2];
         const typeRes = typeResult && typeResult[0] === null ? typeResult[1] : 'unknown';
         const ttlRes = ttlResult && ttlResult[0] === null ? ttlResult[1] : -1;
+        const metaType = metaResult && metaResult[0] === null ? metaResult[1] : null;
 
         keyInfos.push({
           key: keys[i],
-          type: typeRes,
+          type: metaType || typeRes,
           ttl: ttlRes,
         });
       }
@@ -356,7 +359,7 @@ app.post('/api/get', async (req, res) => {
       }
       case 'stream': {
         const len = await client.xlen(key);
-        const entries = await client.xrange(key, '-', '+', 20);
+        const entries = await client.call('xrange', key, '-', '+', 'COUNT', 20);
         const parsed = entries.map(([id, fields]) => ({
           id,
           fields: Object.fromEntries(
@@ -366,6 +369,59 @@ app.post('/api/get', async (req, res) => {
           )
         }));
         detail = { length: len, entries: parsed, showCount: parsed.length };
+        break;
+      }
+      case 'bitmap': {
+        const bitcount = await client.bitcount(key);
+        const len = await client.strlen(key);
+        const bits = [];
+        for (let i = 0; i < Math.min(len * 8, 100); i++) {
+          bits.push(await client.getbit(key, i));
+        }
+        detail = { bitcount, bytes: len, bits };
+        break;
+      }
+      case 'hyperloglog': {
+        const count = await client.pfcount(key);
+        detail = { count };
+        break;
+      }
+      case 'geo': {
+        const [, members] = await client.zscan(key, 0, 'COUNT', 50);
+        const locations = [];
+        for (let i = 0; i < members.length; i += 2) {
+          const member = members[i];
+          const pos = await client.geopos(key, member);
+          if (pos && pos[0]) {
+            locations.push({ member, longitude: pos[0][0], latitude: pos[0][1] });
+          }
+        }
+        const len = await client.zcard(key);
+        detail = { length: len, locations, showCount: locations.length };
+        break;
+      }
+      case 'json': {
+        try {
+          const jsonVal = await client.call('json.get', key);
+          detail = { value: jsonVal };
+          try {
+            detail.jsonValue = JSON.parse(jsonVal);
+            detail.isJson = true;
+          } catch {}
+        } catch (err) {
+          detail = { value: `(JSON module not loaded or error: ${err.message})` };
+        }
+        break;
+      }
+      case 'timeseries': {
+        try {
+          const info = await client.call('ts.info', key);
+          const range = await client.call('ts.range', key, '-', '+', 'COUNT', 50);
+          const entries = range.map(e => ({ timestamp: e[0], value: e[1] }));
+          detail = { info, entries, showCount: entries.length };
+        } catch (err) {
+          detail = { value: `(TimeSeries module not loaded or error: ${err.message})` };
+        }
         break;
       }
       default:
@@ -414,9 +470,11 @@ app.post('/api/del', async (req, res) => {
         const batch = keyArray.slice(i, i + MAX_DELETE_BATCH);
         totalDeleted += await client.del(...batch);
       }
+      await client.hdel(TYPE_META_KEY, ...keyArray);
       res.json({ success: true, deleted: totalDeleted });
     } else {
       const result = await client.del(...keyArray);
+      await client.hdel(TYPE_META_KEY, ...keyArray);
       res.json({ success: true, deleted: result });
     }
   } catch (err) {
@@ -445,7 +503,12 @@ app.post('/api/rename', async (req, res) => {
     const client = getConnection(connId);
     if (!client) return res.json({ success: false, message: '未连接' });
 
+    const type = await client.hget(TYPE_META_KEY, oldKey);
     const result = await client.rename(oldKey, newKey);
+    if (type) {
+      await client.hdel(TYPE_META_KEY, oldKey);
+      await client.hset(TYPE_META_KEY, newKey, type);
+    }
     res.json({ success: true, result: 'OK' });
   } catch (err) {
     res.json({ success: false, message: err.message });
@@ -634,6 +697,8 @@ app.post('/api/zset/remove', async (req, res) => {
 });
 
 // 新增 Key 对话框：根据类型创建
+const TYPE_META_KEY = '__redis_operator_types__';
+
 app.post('/api/create', async (req, res) => {
   try {
     const { connId, key, type, value } = req.body;
@@ -662,9 +727,73 @@ app.post('/api/create', async (req, res) => {
           if (args.length > 0) await client.zadd(key, ...args);
         }
         break;
+      case 'stream':
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          const cmdArgs = [key, '*'];
+          for (const [k, v] of Object.entries(value)) {
+            cmdArgs.push(String(k), String(v));
+          }
+          if (cmdArgs.length > 2) {
+            await client.call('xadd', ...cmdArgs);
+          }
+        }
+        break;
+      case 'bitmap':
+        if (value && Array.isArray(value)) {
+          for (const item of value) {
+            await client.setbit(key, item.offset, item.value);
+          }
+        }
+        break;
+      case 'hyperloglog':
+        if (value && Array.isArray(value) && value.length > 0) {
+          await client.call('pfadd', key, ...value);
+        }
+        break;
+      case 'geo':
+        if (value && Array.isArray(value)) {
+          const args = [];
+          for (const item of value) {
+            args.push(item.longitude, item.latitude, item.member);
+          }
+          if (args.length > 0) {
+            await client.call('geoadd', key, ...args);
+          }
+        }
+        break;
+      case 'json':
+        if (value !== undefined) {
+          try {
+            await client.call('json.set', key, '.', JSON.stringify(value));
+          } catch (err) {
+            await client.set(key, JSON.stringify(value));
+          }
+        }
+        break;
+      case 'timeseries':
+        if (value && Array.isArray(value)) {
+          try {
+            await client.call('ts.create', key);
+            for (const item of value) {
+              if (item.timestamp === 'now') {
+                await client.call('ts.add', key, '*', item.value);
+              } else {
+                await client.call('ts.add', key, item.timestamp, item.value);
+              }
+            }
+          } catch (err) {
+            for (const item of value) {
+              const ts = item.timestamp === 'now' ? Date.now() : item.timestamp;
+              await client.zadd(key, ts, `${ts}:${item.value}`);
+            }
+          }
+        }
+        break;
       default:
         await client.set(key, value || '');
     }
+
+    await client.hset(TYPE_META_KEY, key, type);
 
     res.json({ success: true });
   } catch (err) {

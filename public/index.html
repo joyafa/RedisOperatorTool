@@ -115,7 +115,7 @@ select option{background:var(--sidebar);color:var(--text)}
 .key-tree-expand{width:16px;height:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;color:var(--text-dim);font-size:12px;transition:transform .2s}
 .key-tree-expand.expanded{transform:rotate(90deg)}
 .key-tree-expand:hover{color:var(--text)}
-.key-tree-check{flex-shrink:0;accent-color:var(--blue);width:20px;height:20px;cursor:pointer}
+.key-tree-check{flex-shrink:0;accent-color:var(--blue);width:16px;height:16px;cursor:pointer}
 .key-tree-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
 .key-tree-icon.folder{color:#f39c12}
 .key-tree-icon.key{color:#3498db}
@@ -151,6 +151,11 @@ select option{background:var(--sidebar);color:var(--text)}
 .badge-set{background:rgba(155,89,182,.15);color:#9b59b6}
 .badge-zset{background:rgba(26,188,156,.15);color:#1abc9c}
 .badge-stream{background:rgba(233,30,140,.15);color:#e91e8c}
+.badge-bitmap{background:rgba(96,125,139,.15);color:#607d8b}
+.badge-hyperloglog{background:rgba(103,58,183,.15);color:#673ab7}
+.badge-geo{background:rgba(76,175,80,.15);color:#4caf50}
+.badge-json{background:rgba(0,188,212,.15);color:#00bcd4}
+.badge-timeseries{background:rgba(255,152,0,.15);color:#ff9800}
 
 /* Detail panel */
 .detail-header{padding:16px;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -167,9 +172,9 @@ select option{background:var(--sidebar);color:var(--text)}
 .empty-state p{font-size:20px}
 
 /* Data tables */
-.data-table{width:100%;border-collapse:collapse;font-size:19px}
-.data-table th{text-align:left;padding:8px 12px;font-size:17px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg)}
-.data-table td{padding:8px 12px;border-bottom:1px solid rgba(30,58,95,.2);vertical-align:top}
+.data-table{width:100%;border-collapse:collapse;font-size:16px}
+.data-table th{text-align:left;padding:4px 10px;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg)}
+.data-table td{padding:4px 10px;border-bottom:1px solid rgba(30,58,95,.2);vertical-align:middle}
 .data-table tr:hover td{background:rgba(15,52,96,.3)}
 .data-table .field-name{font-family:var(--mono);color:var(--text-bright);font-size:18px}
 .data-table .field-value{font-family:var(--mono);color:var(--text);font-size:18px;word-break:break-all;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -202,7 +207,7 @@ select option{background:var(--sidebar);color:var(--text)}
 
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:1000;opacity:0;transition:opacity .2s ease}
-.modal-overlay.show{display:flex;opacity:1}
+.modal-overlay.show{display:flex !important;opacity:1}
 .modal{background:var(--sidebar);border:1px solid var(--border);border-radius:var(--radius);width:520px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow);position:relative;z-index:1001}
 .modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
 .modal-header h3{font-size:21px;font-weight:600;color:var(--text-bright)}
@@ -216,6 +221,14 @@ select option{background:var(--sidebar);color:var(--text)}
 .dynamic-field-row{display:flex;gap:6px;align-items:center}
 .dynamic-field-row input{flex:1}
 .dynamic-field-row .field-label{font-size:17px;color:var(--text-dim);width:70px;flex-shrink:0;text-align:right}
+
+/* Type info card */
+.type-info{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;gap:10px;margin-bottom:16px}
+.type-info-icon{font-size:24px;flex-shrink:0}
+.type-info-content{flex:1}
+.type-info-title{font-size:18px;font-weight:600;color:var(--text-primary);margin-bottom:4px}
+.type-info-desc{font-size:15px;color:var(--text-secondary);margin-bottom:4px;line-height:1.4}
+.type-info-scene{font-size:14px;color:var(--text-dim);background:rgba(0,0,0,0.2);padding:6px 10px;border-radius:4px}
 
 /* Toast */
 .toast-container{position:fixed;top:16px;right:16px;z-index:2000;display:flex;flex-direction:column;gap:8px;pointer-events:none}
@@ -277,7 +290,6 @@ select option{background:var(--sidebar);color:var(--text)}
     <div class="sidebar-header">
       <div class="logo">R</div>
       <h1>Redis Operator</h1>
-      <span class="version">v1.0</span>
     </div>
 
     <!-- Connection Panel -->
@@ -362,6 +374,11 @@ select option{background:var(--sidebar);color:var(--text)}
           <option value="set">Set</option>
           <option value="zset">ZSet</option>
           <option value="stream">Stream</option>
+          <option value="bitmap">Bitmap</option>
+          <option value="hyperloglog">HyperLogLog</option>
+          <option value="geo">GEO</option>
+          <option value="json">JSON</option>
+          <option value="timeseries">TimeSeries</option>
         </select>
         <button class="btn btn-primary btn-sm" onclick="showCreateModal()">+ Add Key</button>
       </div>
@@ -401,6 +418,43 @@ select option{background:var(--sidebar);color:var(--text)}
   </div>
 </div>
 
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirmModal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="confirmTitle">Confirm</h3>
+      <button class="modal-close" onclick="closeConfirmModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirmMessage" style="font-size:18px;color:var(--text);line-height:1.6"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+      <button class="btn btn-sm" style="background:rgba(231,76,60,.15);color:#e74c3c" onclick="confirmConfirmModal()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt Modal -->
+<div class="modal-overlay" id="promptModal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="promptTitle">Prompt</h3>
+      <button class="modal-close" onclick="closePromptModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label id="promptLabel">Enter value:</label>
+        <input type="text" id="promptInput" placeholder="" style="width:100%">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-secondary" onclick="closePromptModal()">Cancel</button>
+      <button class="btn btn-sm btn-blue" onclick="confirmPromptModal()">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add Key Modal -->
 <div class="modal-overlay" id="createModal">
   <div class="modal">
@@ -421,7 +475,21 @@ select option{background:var(--sidebar);color:var(--text)}
           <option value="hash">Hash</option>
           <option value="set">Set</option>
           <option value="zset">ZSet (Sorted Set)</option>
+          <option value="stream">Stream</option>
+          <option value="bitmap">Bitmap</option>
+          <option value="hyperloglog">HyperLogLog</option>
+          <option value="geo">GEO</option>
+          <option value="json">JSON</option>
+          <option value="timeseries">TimeSeries</option>
         </select>
+      </div>
+      <div class="type-info" id="typeInfo">
+        <div class="type-info-icon">ℹ️</div>
+        <div class="type-info-content">
+          <div class="type-info-title">String</div>
+          <div class="type-info-desc">最基本的数据类型，用于存储字符串、数字或二进制数据。</div>
+          <div class="type-info-scene">使用场景：缓存、计数器、分布式锁、Session存储</div>
+        </div>
       </div>
       <div class="form-group">
         <label>TTL (seconds, 0 = no expiry)</label>
@@ -870,6 +938,10 @@ function renderKeyTree(node, depth = 0, parentPath = '') {
     if (child.fullKey && child.item) {
       const isChecked = S.selectedKeys.has(child.item.key);
       checkHtml = `<input type="checkbox" class="key-tree-check" ${isChecked ? 'checked' : ''} onchange="event.stopPropagation();toggleSelectKey('${escapeAttr(child.item.key)}')">`;
+    } else if (!child.fullKey && Object.keys(child.children).length > 0) {
+      const allSelected = getAllLeafKeys(child).every(k => S.selectedKeys.has(k));
+      const someSelected = getAllLeafKeys(child).some(k => S.selectedKeys.has(k));
+      checkHtml = `<input type="checkbox" class="key-tree-check" ${allSelected ? 'checked' : ''} data-indeterminate="${someSelected && !allSelected}" onchange="event.stopPropagation();toggleSelectFolder('${escapeAttr(currentPath)}', this.checked)">`;
     }
     
     const icon = child.fullKey ? '🔑' : '📁';
@@ -905,8 +977,18 @@ function renderKeyTree(node, depth = 0, parentPath = '') {
       ${actionsHtml}
     `;
     
+    const checkbox = div.querySelector('.key-tree-check');
+    if (checkbox && checkbox.dataset.indeterminate === 'true') {
+      checkbox.indeterminate = true;
+    }
+    
     if (child.fullKey) {
-      div.addEventListener('click', () => selectKey(child.item.key));
+      div.addEventListener('click', (e) => {
+        if (e.target.closest('.key-tree-check')) {
+          return;
+        }
+        selectKey(child.item.key);
+      });
       div.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         showCtxMenu(e, child.item.key);
@@ -1098,6 +1180,21 @@ function renderDetail() {
     case 'stream':
       contentHtml = renderStreamDetail(detail);
       break;
+    case 'bitmap':
+      contentHtml = renderBitmapDetail(detail);
+      break;
+    case 'hyperloglog':
+      contentHtml = renderHllDetail(detail);
+      break;
+    case 'geo':
+      contentHtml = renderGeoDetail(detail);
+      break;
+    case 'json':
+      contentHtml = renderJsonDetail(detail);
+      break;
+    case 'timeseries':
+      contentHtml = renderTsDetail(detail);
+      break;
     default:
       contentHtml = `<div class="empty-state"><p>Unsupported type: ${escapeHtml(type)}</p></div>`;
   }
@@ -1263,9 +1360,10 @@ function renderListDetail(detail) {
 function listEditIndex(index) {
   if (!S.currentData || !S.currentData.detail.items) return;
   const item = S.currentData.detail.items[index];
-  const newItem = prompt(`Edit list item [${index}]:`, item);
-  if (newItem === null || newItem === item) return;
-  listSetIndex(index, newItem);
+  showPromptModal('Edit List Item', `Edit list item [${index}]:`, item, (newItem) => {
+    if (!newItem || newItem === item) return;
+    listSetIndex(index, newItem);
+  });
 }
 
 async function listSetIndex(index, value) {
@@ -1299,19 +1397,20 @@ async function listAdd() {
   }
 }
 
-async function listRemoveIndex(index) {
-  if (!confirm(`Remove list item at index [${index}]?`)) return;
-  try {
-    const res = await apiCall('/list/remove-index', { connId: S.connId, key: S.currentKey, index });
-    if (res.success) {
-      toast('Item removed', 'success');
-      await loadKeyDetail(S.currentKey);
-    } else {
-      toast(`Error: ${res.message}`, 'error');
+function listRemoveIndex(index) {
+  showConfirmModal('Remove List Item', `确定要删除列表中索引 [${index}] 的元素吗？`, async () => {
+    try {
+      const res = await apiCall('/list/remove-index', { connId: S.connId, key: S.currentKey, index });
+      if (res.success) {
+        toast('Item removed', 'success');
+        await loadKeyDetail(S.currentKey);
+      } else {
+        toast(`Error: ${res.message}`, 'error');
+      }
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
     }
-  } catch (err) {
-    toast(`Error: ${err.message}`, 'error');
-  }
+  });
 }
 
 /* --- Hash --- */
@@ -1367,9 +1466,10 @@ async function hashAddField() {
 }
 
 function hashEditField(field, currentValue) {
-  const newVal = prompt(`Edit field "${field}":`, currentValue);
-  if (newVal === null || newVal === currentValue) return;
-  hashUpdateField(field, newVal);
+  showPromptModal('Edit Hash Field', `Edit field "${field}":`, currentValue, (newVal) => {
+    if (!newVal || newVal === currentValue) return;
+    hashUpdateField(field, newVal);
+  });
 }
 
 async function hashUpdateField(field, value) {
@@ -1386,18 +1486,20 @@ async function hashUpdateField(field, value) {
   }
 }
 
-async function hashDelField(field) {
-  try {
-    const res = await apiCall('/hash/del', { connId: S.connId, key: S.currentKey, fields: [field] });
-    if (res.success) {
-      toast('Field deleted', 'success');
-      await loadKeyDetail(S.currentKey);
-    } else {
-      toast(`Error: ${res.message}`, 'error');
+function hashDelField(field) {
+  showConfirmModal('Delete Hash Field', `确定要删除字段 "${field}" 吗？`, async () => {
+    try {
+      const res = await apiCall('/hash/del', { connId: S.connId, key: S.currentKey, fields: [field] });
+      if (res.success) {
+        toast('Field deleted', 'success');
+        await loadKeyDetail(S.currentKey);
+      } else {
+        toast(`Error: ${res.message}`, 'error');
+      }
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
     }
-  } catch (err) {
-    toast(`Error: ${err.message}`, 'error');
-  }
+  });
 }
 
 /* --- Set --- */
@@ -1445,18 +1547,20 @@ async function setAddMember() {
   }
 }
 
-async function setRemoveMember(member) {
-  try {
-    const res = await apiCall('/set/remove', { connId: S.connId, key: S.currentKey, members: [member] });
-    if (res.success) {
-      toast('Member removed', 'success');
-      await loadKeyDetail(S.currentKey);
-    } else {
-      toast(`Error: ${res.message}`, 'error');
+function setRemoveMember(member) {
+  showConfirmModal('Remove Set Member', `确定要删除集合成员 "${member}" 吗？`, async () => {
+    try {
+      const res = await apiCall('/set/remove', { connId: S.connId, key: S.currentKey, members: [member] });
+      if (res.success) {
+        toast('Member removed', 'success');
+        await loadKeyDetail(S.currentKey);
+      } else {
+        toast(`Error: ${res.message}`, 'error');
+      }
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
     }
-  } catch (err) {
-    toast(`Error: ${err.message}`, 'error');
-  }
+  });
 }
 
 /* --- ZSet --- */
@@ -1516,11 +1620,12 @@ async function zsetAddMember() {
 }
 
 function zsetEditScore(member, currentScore) {
-  const newScore = prompt(`Edit score for "${member}":`, String(currentScore));
-  if (newScore === null) return;
-  const score = parseFloat(newScore);
-  if (isNaN(score)) { toast('Invalid score', 'error'); return; }
-  zsetUpdateScore(member, score);
+  showPromptModal('Edit ZSet Score', `Edit score for "${member}":`, String(currentScore), (newScore) => {
+    if (!newScore) return;
+    const score = parseFloat(newScore);
+    if (isNaN(score)) { toast('Invalid score', 'error'); return; }
+    zsetUpdateScore(member, score);
+  });
 }
 
 async function zsetUpdateScore(member, score) {
@@ -1537,18 +1642,20 @@ async function zsetUpdateScore(member, score) {
   }
 }
 
-async function zsetRemoveMember(member) {
-  try {
-    const res = await apiCall('/zset/remove', { connId: S.connId, key: S.currentKey, members: [member] });
-    if (res.success) {
-      toast('Member removed', 'success');
-      await loadKeyDetail(S.currentKey);
-    } else {
-      toast(`Error: ${res.message}`, 'error');
+function zsetRemoveMember(member) {
+  showConfirmModal('Remove ZSet Member', `确定要删除有序集合成员 "${member}" 吗？`, async () => {
+    try {
+      const res = await apiCall('/zset/remove', { connId: S.connId, key: S.currentKey, members: [member] });
+      if (res.success) {
+        toast('Member removed', 'success');
+        await loadKeyDetail(S.currentKey);
+      } else {
+        toast(`Error: ${res.message}`, 'error');
+      }
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
     }
-  } catch (err) {
-    toast(`Error: ${err.message}`, 'error');
-  }
+  });
 }
 
 /* --- Stream --- */
@@ -1576,33 +1683,88 @@ function renderStreamDetail(detail) {
   return html;
 }
 
+function renderBitmapDetail(detail) {
+  let html = `<div style="font-size:18px;color:var(--text-dim);margin-bottom:10px">Bits set: ${detail.bitcount || 0} | Bytes: ${detail.bytes || 0}</div>`;
+  if (detail.bits && detail.bits.length > 0) {
+    html += `<div style="font-family:var(--mono);font-size:14px;word-break:break-all">${detail.bits.join('')}</div>`;
+  }
+  return html;
+}
+
+function renderHllDetail(detail) {
+  return `<div style="font-size:24px;font-weight:600;color:var(--text);text-align:center;padding:40px">Estimated count: ${detail.count || 0}</div>`;
+}
+
+function renderGeoDetail(detail) {
+  const locations = detail.locations || [];
+  const totalLen = detail.length || 0;
+  let html = `<div style="font-size:18px;color:var(--text-dim);margin-bottom:10px">${totalLen} locations${totalLen > locations.length ? ` (showing ${locations.length})` : ''}</div>`;
+  if (locations.length === 0) {
+    html += `<div class="empty-state" style="height:auto;padding:40px"><p>No locations</p></div>`;
+  } else {
+    html += '<table class="data-table"><thead><tr><th>Member</th><th>Longitude</th><th>Latitude</th></tr></thead><tbody>';
+    locations.forEach(loc => {
+      html += `<tr><td class="field-name">${escapeHtml(loc.member)}</td><td>${loc.longitude}</td><td>${loc.latitude}</td></tr>`;
+    });
+    html += '</tbody></table>';
+  }
+  return html;
+}
+
+function renderJsonDetail(detail) {
+  if (detail.isJson && detail.jsonValue) {
+    return `<pre style="font-family:var(--mono);font-size:14px;white-space:pre-wrap;word-break:break-all;max-height:500px;overflow-y:auto">${escapeHtml(JSON.stringify(detail.jsonValue, null, 2))}</pre>`;
+  }
+  return `<pre style="font-family:var(--mono);font-size:14px">${escapeHtml(detail.value || '')}</pre>`;
+}
+
+function renderTsDetail(detail) {
+  const entries = detail.entries || [];
+  let html = '';
+  if (detail.info) {
+    html += `<div style="font-size:18px;color:var(--text-dim);margin-bottom:10px">Points: ${detail.info.totalSamples || 0}</div>`;
+  }
+  if (entries.length === 0) {
+    html += `<div class="empty-state" style="height:auto;padding:40px"><p>No data points</p></div>`;
+  } else {
+    html += '<table class="data-table"><thead><tr><th>Timestamp</th><th>Value</th></tr></thead><tbody>';
+    entries.forEach(e => {
+      html += `<tr><td class="field-name">${e.timestamp}</td><td>${e.value}</td></tr>`;
+    });
+    html += '</tbody></table>';
+  }
+  return html;
+}
+
 /* ================================================================
    Key Actions
 ================================================================ */
-async function deleteKey(key) {
-  if (!confirm(`Delete key "${key}"?`)) return;
-  try {
-    const res = await apiCall('/del', { connId: S.connId, keys: [key] });
-    if (res.success) {
-      toast(`Key "${key}" deleted`, 'success');
-      if (S.currentKey === key) {
-        S.currentKey = null;
-        S.currentData = null;
-        renderDetail();
+function deleteKey(key) {
+  showConfirmModal('Delete Key', `确定要删除 key "${key}" 吗？此操作无法撤销。`, async () => {
+    try {
+      const res = await apiCall('/del', { connId: S.connId, keys: [key] });
+      if (res.success) {
+        toast(`Key "${key}" deleted`, 'success');
+        if (S.currentKey === key) {
+          S.currentKey = null;
+          S.currentData = null;
+          renderDetail();
+        }
+        await refreshKeys();
+      } else {
+        toast(`Error: ${res.message}`, 'error');
       }
-      await refreshKeys();
-    } else {
-      toast(`Error: ${res.message}`, 'error');
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
     }
-  } catch (err) {
-    toast(`Error: ${err.message}`, 'error');
-  }
+  });
 }
 
 function promptRename(key) {
-  const newKey = prompt(`Rename key "${key}" to:`, key);
-  if (!newKey || newKey === key) return;
-  doRename(key, newKey);
+  showPromptModal('Rename Key', `Enter new name for "${key}":`, key, (newKey) => {
+    if (!newKey || newKey === key) return;
+    doRename(key, newKey);
+  });
 }
 
 async function doRename(oldKey, newKey) {
@@ -1622,11 +1784,12 @@ async function doRename(oldKey, newKey) {
 }
 
 function promptSetTTL(key) {
-  const sec = prompt(`Set TTL for "${key}" (seconds, -1 to persist):`, '3600');
-  if (sec === null) return;
-  const seconds = parseInt(sec);
-  if (isNaN(seconds)) { toast('Invalid TTL value', 'error'); return; }
-  doSetTTL(key, seconds);
+  showPromptModal('Set TTL', `Set TTL for "${key}" (seconds, -1 to persist):`, '3600', (sec) => {
+    if (!sec) return;
+    const seconds = parseInt(sec);
+    if (isNaN(seconds)) { toast('Invalid TTL value', 'error'); return; }
+    doSetTTL(key, seconds);
+  });
 }
 
 async function doSetTTL(key, seconds) {
@@ -1666,6 +1829,46 @@ function toggleKeySelection(key, checked) {
   });
 }
 
+function getAllLeafKeys(node) {
+  const keys = [];
+  if (node.fullKey && node.item) {
+    keys.push(node.item.key);
+  }
+  for (const child of Object.values(node.children)) {
+    keys.push(...getAllLeafKeys(child));
+  }
+  return keys;
+}
+
+function toggleSelectFolder(path, checked) {
+  const tree = buildKeyTree(S.typeFilter === 'all' ? S.keys : S.keys.filter(k => k.type === S.typeFilter));
+  const node = findNodeByPath(tree, path);
+  if (!node) return;
+  
+  const leafKeys = getAllLeafKeys(node);
+  if (checked) {
+    leafKeys.forEach(k => S.selectedKeys.add(k));
+  } else {
+    leafKeys.forEach(k => S.selectedKeys.delete(k));
+  }
+  
+  updateBatchBar();
+  renderKeyList();
+}
+
+function findNodeByPath(node, path) {
+  const parts = path.split(':');
+  let current = node;
+  for (const part of parts) {
+    if (current.children && current.children[part]) {
+      current = current.children[part];
+    } else {
+      return null;
+    }
+  }
+  return current;
+}
+
 function toggleSelectKey(key) {
   if (S.selectedKeys.has(key)) {
     S.selectedKeys.delete(key);
@@ -1677,9 +1880,11 @@ function toggleSelectKey(key) {
   items.forEach(item => {
     const checkBox = item.querySelector('.key-tree-check');
     if (checkBox && checkBox.getAttribute('onchange')?.includes(`'${key}'`)) {
+      checkBox.checked = S.selectedKeys.has(key);
       item.classList.toggle('selected', S.selectedKeys.has(key));
     }
   });
+  renderKeyList();
 }
 
 function toggleSelectAll() {
@@ -1702,22 +1907,23 @@ function updateBatchBar() {
   }
 }
 
-async function batchDelete() {
+function batchDelete() {
   if (S.selectedKeys.size === 0) return;
-  if (!confirm(`Delete ${S.selectedKeys.size} key(s)?`)) return;
-  try {
-    const res = await apiCall('/del', { connId: S.connId, keys: [...S.selectedKeys] });
-    if (res.success) {
-      toast(`Deleted ${res.deleted} key(s)`, 'success');
-      S.selectedKeys.clear();
-      document.getElementById('selectAll').checked = false;
-      await refreshKeys();
-    } else {
-      toast(`Error: ${res.message}`, 'error');
+  showConfirmModal('Batch Delete', `确定要删除 ${S.selectedKeys.size} 个 key 吗？此操作无法撤销。`, async () => {
+    try {
+      const res = await apiCall('/del', { connId: S.connId, keys: [...S.selectedKeys] });
+      if (res.success) {
+        toast(`Deleted ${res.deleted} key(s)`, 'success');
+        S.selectedKeys.clear();
+        document.getElementById('selectAll').checked = false;
+        await refreshKeys();
+      } else {
+        toast(`Error: ${res.message}`, 'error');
+      }
+    } catch (err) {
+      toast(`Error: ${err.message}`, 'error');
     }
-  } catch (err) {
-    toast(`Error: ${err.message}`, 'error');
-  }
+  });
 }
 
 /* ================================================================
@@ -1767,9 +1973,86 @@ function closeCreateModal() {
   document.getElementById('createModal').classList.remove('show');
 }
 
+let promptCallback = null;
+let confirmCallback = null;
+
+function showConfirmModal(title, message, callback) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').textContent = message;
+  document.getElementById('confirmModal').classList.add('show');
+  confirmCallback = callback;
+}
+
+function closeConfirmModal() {
+  document.getElementById('confirmModal').classList.remove('show');
+  confirmCallback = null;
+}
+
+function confirmConfirmModal() {
+  if (confirmCallback) {
+    confirmCallback();
+  }
+  closeConfirmModal();
+}
+
+function showPromptModal(title, label, defaultValue, callback) {
+  console.log('showPromptModal called:', title, label);
+  const modal = document.getElementById('promptModal');
+  console.log('Modal element:', modal);
+  document.getElementById('promptTitle').textContent = title;
+  document.getElementById('promptLabel').textContent = label;
+  document.getElementById('promptInput').value = defaultValue || '';
+  modal.classList.add('show');
+  console.log('Modal classList:', modal.classList);
+  promptCallback = callback;
+  setTimeout(() => document.getElementById('promptInput').focus(), 100);
+}
+
+function closePromptModal() {
+  document.getElementById('promptModal').classList.remove('show');
+  promptCallback = null;
+}
+
+function confirmPromptModal() {
+  const value = document.getElementById('promptInput').value;
+  if (promptCallback) {
+    promptCallback(value);
+  }
+  closePromptModal();
+}
+
+const TYPE_INFO = {
+  string: { title: 'String', desc: '最基本的数据类型，用于存储字符串、数字或二进制数据，最大512MB。', scene: '使用场景：缓存、计数器、分布式锁、Session存储、配置信息' },
+  list: { title: 'List', desc: '有序的字符串列表，支持在两端高效插入/删除元素，底层是双向链表。', scene: '使用场景：消息队列、任务列表、最新动态、评论列表' },
+  hash: { title: 'Hash', desc: '键值对的集合，适合存储对象，支持独立更新每个字段。', scene: '使用场景：用户信息、商品详情、配置存储、对象缓存' },
+  set: { title: 'Set', desc: '无序的字符串集合，元素唯一，支持集合运算(交集/并集/差集)。', scene: '使用场景：好友关系、标签系统、去重统计、共同好友' },
+  zset: { title: 'ZSet (Sorted Set)', desc: '有序集合，每个元素关联一个分数，按分数排序。', scene: '使用场景：排行榜、权重队列、范围查询、热门列表' },
+  stream: { title: 'Stream', desc: '消息流结构，支持消费者组、消息确认、持久化存储。', scene: '使用场景：消息队列、事件溯源、日志收集、实时数据处理' },
+  bitmap: { title: 'Bitmap', desc: '位操作类型，基于String实现，极致节省内存(1 bit/用户)。', scene: '使用场景：用户签到、在线状态、布隆过滤器、活跃用户统计' },
+  hyperloglog: { title: 'HyperLogLog', desc: '基数估算算法，固定12KB内存估算集合大小。', scene: '使用场景：UV统计、海量数据去重、网站访问量统计' },
+  geo: { title: 'GEO', desc: '地理位置存储，支持经纬度存储和范围查询，基于ZSet实现。', scene: '使用场景：附近的人、外卖配送距离、地图围栏、LBS服务' },
+  json: { title: 'JSON', desc: 'JSON文档存储，无需反序列化即可读写，需RedisJSON模块。', scene: '使用场景：文档存储、嵌套配置、API响应缓存、复杂对象' },
+  timeseries: { title: 'TimeSeries', desc: '时间序列数据，支持自动降采样、聚合查询，需RedisTimeSeries模块。', scene: '使用场景：IoT传感器数据、监控指标、金融时序、实时分析' }
+};
+
+function updateTypeInfo(type) {
+  const info = TYPE_INFO[type] || TYPE_INFO.string;
+  const el = document.getElementById('typeInfo');
+  el.innerHTML = `
+    <div class="type-info-icon">ℹ️</div>
+    <div class="type-info-content">
+      <div class="type-info-title">${info.title}</div>
+      <div class="type-info-desc">${info.desc}</div>
+      <div class="type-info-scene">${info.scene}</div>
+    </div>
+  `;
+}
+
 function onCreateTypeChange() {
   const type = document.getElementById('createKeyType').value;
   const area = document.getElementById('createValueArea');
+
+  updateTypeInfo(type);
 
   switch (type) {
     case 'string':
@@ -1815,6 +2098,71 @@ function onCreateTypeChange() {
         <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="addZSetFieldRow()">+ Add Member</button>
       `;
       break;
+    case 'stream':
+      area.innerHTML = `
+        <div class="dynamic-fields" id="dynamicFields">
+          <div style="font-size:18px;color:var(--text-dim);margin-bottom:4px">Stream fields:</div>
+          <div class="dynamic-field-row">
+            <input type="text" id="streamField0" placeholder="Field name">
+            <input type="text" id="streamValue0" placeholder="Value">
+          </div>
+        </div>
+        <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="addStreamFieldRow()">+ Add Field</button>
+      `;
+      break;
+    case 'bitmap':
+      area.innerHTML = `
+        <div class="dynamic-fields" id="dynamicFields">
+          <div style="font-size:18px;color:var(--text-dim);margin-bottom:4px">Bitmap bits (offset:value):</div>
+          <div class="dynamic-field-row">
+            <input type="number" id="bitmapOffset0" placeholder="Offset" min="0">
+            <input type="number" id="bitmapValue0" placeholder="Value (0/1)" min="0" max="1">
+          </div>
+        </div>
+        <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="addBitmapFieldRow()">+ Add Bit</button>
+      `;
+      break;
+    case 'hyperloglog':
+      area.innerHTML = `
+        <div class="dynamic-fields" id="dynamicFields">
+          <div style="font-size:18px;color:var(--text-dim);margin-bottom:4px">HyperLogLog values (one per line):</div>
+          <textarea id="createHllValue" rows="4" placeholder="value1&#10;value2&#10;value3" style="font-family:var(--mono);font-size:18px"></textarea>
+        </div>
+      `;
+      break;
+    case 'geo':
+      area.innerHTML = `
+        <div class="dynamic-fields" id="dynamicFields">
+          <div style="font-size:18px;color:var(--text-dim);margin-bottom:4px">GEO locations (longitude, latitude, member):</div>
+          <div class="dynamic-field-row">
+            <input type="number" id="geoLon0" placeholder="Longitude" step="any">
+            <input type="number" id="geoLat0" placeholder="Latitude" step="any">
+            <input type="text" id="geoMember0" placeholder="Member name">
+          </div>
+        </div>
+        <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="addGeoFieldRow()">+ Add Location</button>
+      `;
+      break;
+    case 'json':
+      area.innerHTML = `
+        <div class="dynamic-fields" id="dynamicFields">
+          <div style="font-size:18px;color:var(--text-dim);margin-bottom:4px">JSON value:</div>
+          <textarea id="createJsonValue" rows="6" placeholder="{&#10;  &quot;key&quot;: &quot;value&quot;&#10;}" style="font-family:var(--mono);font-size:16px"></textarea>
+        </div>
+      `;
+      break;
+    case 'timeseries':
+      area.innerHTML = `
+        <div class="dynamic-fields" id="dynamicFields">
+          <div style="font-size:18px;color:var(--text-dim);margin-bottom:4px">TimeSeries value:</div>
+          <div class="dynamic-field-row">
+            <input type="number" id="tsValue0" placeholder="Value" step="any">
+            <input type="number" id="tsTimestamp0" placeholder="Timestamp (ms, empty=now)" min="0">
+          </div>
+        </div>
+        <button class="btn btn-sm btn-secondary" style="margin-top:6px" onclick="addTsFieldRow()">+ Add Value</button>
+      `;
+      break;
   }
 }
 
@@ -1841,6 +2189,63 @@ function addZSetFieldRow() {
   row.innerHTML = `
     <input type="number" id="zsetScore${zsetFieldCount}" placeholder="Score" step="any">
     <input type="text" id="zsetMember${zsetFieldCount}" placeholder="Member">
+    <button class="btn-icon" title="Remove" onclick="this.parentElement.remove()">&#128465;</button>
+  `;
+  container.appendChild(row);
+}
+
+let streamFieldCount = 0;
+function addStreamFieldRow() {
+  streamFieldCount++;
+  const container = document.getElementById('dynamicFields');
+  const row = document.createElement('div');
+  row.className = 'dynamic-field-row';
+  row.innerHTML = `
+    <input type="text" id="streamField${streamFieldCount}" placeholder="Field name">
+    <input type="text" id="streamValue${streamFieldCount}" placeholder="Value">
+    <button class="btn-icon" title="Remove" onclick="this.parentElement.remove()">&#128465;</button>
+  `;
+  container.appendChild(row);
+}
+
+let bitmapFieldCount = 0;
+function addBitmapFieldRow() {
+  bitmapFieldCount++;
+  const container = document.getElementById('dynamicFields');
+  const row = document.createElement('div');
+  row.className = 'dynamic-field-row';
+  row.innerHTML = `
+    <input type="number" id="bitmapOffset${bitmapFieldCount}" placeholder="Offset" min="0">
+    <input type="number" id="bitmapValue${bitmapFieldCount}" placeholder="Value (0/1)" min="0" max="1">
+    <button class="btn-icon" title="Remove" onclick="this.parentElement.remove()">&#128465;</button>
+  `;
+  container.appendChild(row);
+}
+
+let geoFieldCount = 0;
+function addGeoFieldRow() {
+  geoFieldCount++;
+  const container = document.getElementById('dynamicFields');
+  const row = document.createElement('div');
+  row.className = 'dynamic-field-row';
+  row.innerHTML = `
+    <input type="number" id="geoLon${geoFieldCount}" placeholder="Longitude" step="any">
+    <input type="number" id="geoLat${geoFieldCount}" placeholder="Latitude" step="any">
+    <input type="text" id="geoMember${geoFieldCount}" placeholder="Member name">
+    <button class="btn-icon" title="Remove" onclick="this.parentElement.remove()">&#128465;</button>
+  `;
+  container.appendChild(row);
+}
+
+let tsFieldCount = 0;
+function addTsFieldRow() {
+  tsFieldCount++;
+  const container = document.getElementById('dynamicFields');
+  const row = document.createElement('div');
+  row.className = 'dynamic-field-row';
+  row.innerHTML = `
+    <input type="number" id="tsValue${tsFieldCount}" placeholder="Value" step="any">
+    <input type="number" id="tsTimestamp${tsFieldCount}" placeholder="Timestamp (ms)" min="0">
     <button class="btn-icon" title="Remove" onclick="this.parentElement.remove()">&#128465;</button>
   `;
   container.appendChild(row);
@@ -1885,6 +2290,56 @@ async function handleCreate() {
         });
         break;
       }
+      case 'stream': {
+        value = {};
+        const fields = document.querySelectorAll('#dynamicFields .dynamic-field-row');
+        fields.forEach(row => {
+          const f = row.querySelectorAll('input[type="text"]')[0]?.value.trim();
+          const v = row.querySelectorAll('input[type="text"]')[1]?.value || '';
+          if (f) value[f] = v;
+        });
+        break;
+      }
+      case 'bitmap': {
+        value = [];
+        const rows = document.querySelectorAll('#dynamicFields .dynamic-field-row');
+        rows.forEach(row => {
+          const offset = parseInt(row.querySelectorAll('input[type="number"]')[0]?.value);
+          const bitValue = parseInt(row.querySelectorAll('input[type="number"]')[1]?.value);
+          if (!isNaN(offset) && bitValue !== undefined) value.push({ offset, value: bitValue });
+        });
+        break;
+      }
+      case 'hyperloglog': {
+        value = document.getElementById('createHllValue').value.split('\n').filter(s => s.trim());
+        break;
+      }
+      case 'geo': {
+        value = [];
+        const rows = document.querySelectorAll('#dynamicFields .dynamic-field-row');
+        rows.forEach(row => {
+          const lon = parseFloat(row.querySelectorAll('input[type="number"]')[0]?.value);
+          const lat = parseFloat(row.querySelectorAll('input[type="number"]')[1]?.value);
+          const member = row.querySelector('input[type="text"]')?.value.trim();
+          if (!isNaN(lon) && !isNaN(lat) && member) value.push({ longitude: lon, latitude: lat, member });
+        });
+        break;
+      }
+      case 'json': {
+        const jsonStr = document.getElementById('createJsonValue').value.trim();
+        value = jsonStr ? JSON.parse(jsonStr) : {};
+        break;
+      }
+      case 'timeseries': {
+        value = [];
+        const rows = document.querySelectorAll('#dynamicFields .dynamic-field-row');
+        rows.forEach(row => {
+          const val = parseFloat(row.querySelectorAll('input[type="number"]')[0]?.value);
+          const ts = parseFloat(row.querySelectorAll('input[type="number"]')[1]?.value);
+          if (!isNaN(val)) value.push({ value: val, timestamp: ts || 'now' });
+        });
+        break;
+      }
     }
   } catch (err) {
     toast(`Invalid value: ${err.message}`, 'error');
@@ -1918,10 +2373,7 @@ async function handleCreate() {
   }
 }
 
-// Close modal on overlay click
-document.getElementById('createModal').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) closeCreateModal();
-});
+
 
 /* ================================================================
    Search
