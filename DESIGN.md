@@ -3,7 +3,7 @@
 ## 1. 项目概述
 
 ### 1.1 项目简介
-Redis Operator 是一个轻量级的 Redis 数据管理工具，提供可视化界面来管理 Redis 数据库中的数据。支持所有 Redis 数据类型的查看和操作，包括 String、List、Hash、Set、ZSet 和 Stream。
+Redis Operator 是一个轻量级的 Redis 数据管理工具，提供可视化界面来管理 Redis 数据库中的数据。支持所有 Redis 数据类型的查看和操作，包括 String、List、Hash、Set、ZSet、Stream、Bitmap、HyperLogLog、GEO、JSON 和 TimeSeries。
 
 ### 1.2 技术栈
 
@@ -258,6 +258,42 @@ const info = await client.info('keyspace');
 | Set | `SCARD` + `SSCAN` | 最多 500 个成员 |
 | ZSet | `ZCARD` + `ZRANGE 0 499 WITHSCORES` | 最多 500 个成员 |
 | Stream | `XLEN` + `XRANGE` | 最多 20 条记录 |
+| Bitmap | `STRLEN` + `GET` | 返回字符串长度和位值 |
+| HyperLogLog | `PFCOUNT` | 返回基数估算值 |
+| GEO | `GEORADIUS` | 最多 100 个位置 |
+| JSON | `GET` | 返回完整JSON |
+| TimeSeries | `GET` | 返回时间序列数据 |
+
+#### 3.3.3.5 元数据管理机制
+
+**设计背景**：部分 Redis 扩展类型（GEO、Bitmap、JSON、TimeSeries）在底层会自动降级为基础类型存储（如 GEO 降为 ZSET，Bitmap 降为 String），导致 TYPE 命令无法准确识别逻辑类型。
+
+**解决方案**：使用 Redis Hash 存储元数据，记录每个 Key 的逻辑类型。
+
+```javascript
+// 设置类型元数据
+await client.hset('__redis_operator_types__', key, type);
+
+// 获取类型元数据
+const type = await client.hget('__redis_operator_types__', key);
+```
+
+**元数据 Key 格式**: `__redis_operator_types__`
+
+**类型映射**:
+
+| 逻辑类型 | 底层类型 | 说明 |
+|----------|----------|------|
+| `bitmap` | String | 位操作类型 |
+| `hyperloglog` | String | 基数估算类型 |
+| `geo` | ZSet | 地理位置类型 |
+| `json` | String | JSON 文档类型 |
+| `timeseries` | String | 时间序列类型 |
+
+**元数据生命周期**:
+- 创建 Key 时：同步写入元数据
+- 获取 Key 列表时：优先从元数据获取类型
+- 删除 Key 时：同步删除元数据
 
 #### 3.3.4 List 操作
 
@@ -289,6 +325,42 @@ const info = await client.info('keyspace');
 | `/api/zset/add` | POST | 添加成员 |
 | `/api/zset/remove` | POST | 删除成员 |
 
+#### 3.3.8 Stream 操作
+
+| 路由 | 方法 | 功能 |
+|------|------|------|
+| `/api/stream/add` | POST | 添加消息 |
+| `/api/stream/delete` | POST | 删除消息 |
+
+#### 3.3.9 Bitmap 操作
+
+| 路由 | 方法 | 功能 |
+|------|------|------|
+| `/api/bitmap/set` | POST | 设置位值 |
+| `/api/bitmap/get` | POST | 获取位值 |
+
+#### 3.3.10 GEO 操作
+
+| 路由 | 方法 | 功能 |
+|------|------|------|
+| `/api/geo/add` | POST | 添加地理位置 |
+| `/api/geo/distance` | POST | 计算距离 |
+| `/api/geo/radius` | POST | 附近位置查询 |
+
+#### 3.3.11 JSON 操作
+
+| 路由 | 方法 | 功能 |
+|------|------|------|
+| `/api/json/set` | POST | 设置JSON值 |
+| `/api/json/get` | POST | 获取JSON值 |
+
+#### 3.3.12 元数据管理
+
+| 路由 | 方法 | 功能 |
+|------|------|------|
+| `/api/types/get` | POST | 获取Key类型元数据 |
+| `/api/types/set` | POST | 设置Key类型元数据 |
+
 ---
 
 ### 3.4 前端设计 (public/index.html)
@@ -299,15 +371,15 @@ const info = await client.info('keyspace');
 ┌─────────────────────────────────────────────────────────────────┐
 │  Sidebar                    │  Key Panel         │  Detail      │
 │  ┌────────────────────────┐  ┌─────────────────┐  │ Panel       │
-│  │ Logo + Version         │  │ Header + Search │  │             │
+│  │ Logo                   │  │ Header + Search │  │             │
+│  ├────────────────────────┤  │ + Type Filter   │  │ Key Detail  │
+│  │ Connection Form        │  │ Tree Key List   │  │ Editor      │
+│  │ - Host, Port, DB       │  │ (Scrollable)    │  │             │
+│  │ - Password             │  │ - Checkboxes    │  │             │
+│  │ - Connect Button       │  │ - Folders       │  │             │
 │  ├────────────────────────┤  ├─────────────────┤  │             │
-│  │ Connection Form        │  │ Key List        │  │ Key Detail  │
-│  │ - Host, Port, DB       │  │ (Scrollable)    │  │ Editor      │
-│  │ - Password             │  ├─────────────────┤  │             │
-│  │ - Connect Button       │  │ Load More       │  │             │
-│  ├────────────────────────┤  │                 │  │             │
-│  │ Database Selector      │  │                 │  │             │
-│  │ (16 DB buttons)        │  │                 │  │             │
+│  │ Database Selector      │  │ Batch Actions   │  │             │
+│  │ (16 DB buttons)        │  │ - Delete Sel.   │  │             │
 │  ├────────────────────────┤  │                 │  │             │
 │  │ Copyright              │  │                 │  │             │
 │  └────────────────────────┘  └─────────────────┘  └─────────────┘
@@ -331,10 +403,97 @@ const S = {
   redisVersion: '',       // Redis版本
   searchPattern: '*',     // 搜索模式
   typeFilter: 'all',      // 类型过滤器
+  keyTree: {},            // 树形Key结构
+  expandedFolders: new Set(), // 展开的文件夹
 };
 ```
 
-#### 3.4.3 错误处理
+#### 3.4.3 树形Key结构
+
+**设计背景**：大量 Key 使用冒号 `:` 作为分隔符组织层级结构（如 `user:1:profile`），需要树形展示。
+
+**树形结构生成算法**：
+
+```javascript
+function buildKeyTree(keys) {
+  const tree = {};
+  for (const key of keys) {
+    const parts = key.split(':');
+    let current = tree;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (!current[part]) {
+        current[part] = {
+          __type: i === parts.length - 1 ? 'key' : 'folder',
+          __key: i === parts.length - 1 ? key : null,
+        };
+      }
+      current = current[part];
+    }
+  }
+  return tree;
+}
+```
+
+**树形节点类型**：
+
+| 类型 | 说明 | 功能 |
+|------|------|------|
+| `folder` | 文件夹节点 | 展开/折叠、全选子节点、复选框（支持半选中状态） |
+| `key` | Key节点 | 查看详情、编辑、重命名、删除、设置TTL |
+
+**复选框状态**：
+
+| 状态 | 条件 | 显示 |
+|------|------|------|
+| 未选中 | 无任何子节点被选中 | 空白方框 |
+| 全选中 | 所有子节点被选中 | 勾选方框 |
+| 半选中 | 部分子节点被选中 | 填充方框（indeterminate） |
+
+#### 3.4.4 自定义模态框
+
+**设计背景**：Electron 环境下禁用了浏览器原生 `prompt()` 和 `confirm()`，需要自定义模态框替代。
+
+**模态框类型**：
+
+| 类型 | 用途 | 参数 |
+|------|------|------|
+| PromptModal | 输入对话框（重命名、设置TTL） | title, message, defaultValue, callback |
+| ConfirmModal | 确认对话框（删除操作） | title, message, callback |
+
+**模态框API**：
+
+```javascript
+// Prompt模态框
+function showPromptModal(title, message, defaultValue, callback) { ... }
+
+// Confirm模态框
+function showConfirmModal(title, message, callback) { ... }
+
+// 关闭模态框
+function closePromptModal() { ... }
+function closeConfirmModal() { ... }
+```
+
+#### 3.4.5 类型说明卡片
+
+**设计背景**：创建新 Key 时，用户可能不了解各数据类型的用途，需要提供类型说明和使用场景。
+
+**类型说明数据结构**：
+
+```javascript
+const typeDescriptions = {
+  string: {
+    name: 'String',
+    desc: '字符串类型，最基本的数据类型',
+    usage: '存储文本、数字、序列化对象等',
+    icon: '📝'
+  },
+  // ... 其他类型
+};
+```
+
+#### 3.4.6 错误处理
 
 前端对常见错误进行友好提示转换：
 
@@ -571,3 +730,22 @@ Copyright © 2026 南昌市星纬智创科技有限公司. All rights reserved.
 | v1.0.1 | /api/info section 参数白名单校验 | server.js |
 | v1.0.1 | package.json 添加 logger.js 到 build.files | package.json |
 | v1.0.1 | isPackaged 检测改用 APP_IS_PACKAGED 环境变量 | server.js, electron/main.js |
+| v1.1.0 | 添加 Bitmap 数据类型支持 | server.js, public/index.html |
+| v1.1.0 | 添加 HyperLogLog 数据类型支持 | server.js, public/index.html |
+| v1.1.0 | 添加 GEO 数据类型支持 | server.js, public/index.html |
+| v1.1.0 | 添加 JSON 数据类型支持 | server.js, public/index.html |
+| v1.1.0 | 添加 TimeSeries 数据类型支持 | server.js, public/index.html |
+| v1.1.0 | 添加元数据管理机制（__redis_operator_types__） | server.js |
+| v1.1.0 | 修复 Stream 类型创建语法错误 | server.js |
+| v1.1.0 | 修复连接后立即断开问题（windowLoaded并发保护） | electron/main.js |
+| v1.1.0 | 修复复选框无法点击选中问题 | public/index.html |
+| v1.1.0 | 修复复选框 indeterminate 属性设置不正确 | public/index.html |
+| v1.1.0 | 修复特殊类型筛选显示错误 | server.js |
+| v1.1.0 | 添加树形Key结构展示 | public/index.html |
+| v1.1.0 | 添加文件夹全选功能 | public/index.html |
+| v1.1.0 | 添加自定义 Prompt 模态框 | public/index.html |
+| v1.1.0 | 添加自定义 Confirm 模态框 | public/index.html |
+| v1.1.0 | 所有删除操作添加确认弹窗 | public/index.html |
+| v1.1.0 | 添加类型说明卡片 | public/index.html |
+| v1.1.0 | NSIS安装程序改为非一键安装模式 | package.json |
+| v1.1.0 | 移除界面版本号（移至About对话框） | public/index.html, electron/main.js |
