@@ -525,6 +525,8 @@ select option{background:var(--sidebar);color:var(--text)}
 /* ================================================================
    State
 ================================================================ */
+const MAX_KEYS_LIMIT = 10000;
+
 const S = {
   connId: null,
   connected: false,
@@ -548,6 +550,7 @@ const S = {
   isUserInteracting: false,
   pendingRender: false,
   dbCache: {},
+  keysLimitReached: false,
 };
 
 const API = '/api';
@@ -783,6 +786,7 @@ async function refreshKeys(force = false) {
   S.currentKey = null;
   S.currentData = null;
   S.autoLoading = false;
+  S.keysLimitReached = false;
 
   let pattern = document.getElementById('searchInput').value.trim() || '*';
   if (pattern !== '*' && !pattern.includes('*') && !pattern.includes('?')) {
@@ -855,10 +859,10 @@ function clearDbCache(db) {
 }
 
 function scheduleNextBatch() {
-  if (!S.autoLoading || !S.hasMore || !S.connId) return;
+  if (!S.autoLoading || !S.hasMore || !S.connId || S.keysLimitReached) return;
   
   setTimeout(async () => {
-    if (!S.autoLoading || !S.hasMore || !S.connId) return;
+    if (!S.autoLoading || !S.hasMore || !S.connId || S.keysLimitReached) return;
     
     if (S.isUserInteracting) {
       scheduleNextBatch();
@@ -868,9 +872,19 @@ function scheduleNextBatch() {
     try {
       const res = await apiCall('/keys', { connId: S.connId, pattern: S.searchPattern, cursor: S.cursor, count: 100 });
       if (res.success) {
-        S.keys.push(...res.keys);
-        S.cursor = res.cursor;
-        S.hasMore = res.hasMore;
+        if (S.keys.length + res.keys.length > MAX_KEYS_LIMIT) {
+          const remaining = MAX_KEYS_LIMIT - S.keys.length;
+          S.keys.push(...res.keys.slice(0, remaining));
+          S.cursor = res.cursor;
+          S.hasMore = false;
+          S.keysLimitReached = true;
+          toast(`Key limit (${MAX_KEYS_LIMIT}) reached. Please use a more specific search pattern.`, 'warning');
+        } else {
+          S.keys.push(...res.keys);
+          S.cursor = res.cursor;
+          S.hasMore = res.hasMore;
+        }
+        
         const cacheKey = `${S.currentDb}:${S.searchPattern}`;
         saveDbCache(cacheKey);
         
@@ -897,7 +911,7 @@ function scheduleNextBatch() {
 }
 
 async function loadMoreKeys() {
-  if (!S.connId || !S.hasMore || S.loadingKeys) return;
+  if (!S.connId || !S.hasMore || S.loadingKeys || S.keysLimitReached) return;
   S.loadingKeys = true;
   
   const btn = document.getElementById('btnLoadMore');
@@ -907,9 +921,18 @@ async function loadMoreKeys() {
   try {
     const res = await apiCall('/keys', { connId: S.connId, pattern: S.searchPattern, cursor: S.cursor, count: 100 });
     if (res.success) {
-      S.keys.push(...res.keys);
-      S.cursor = res.cursor;
-      S.hasMore = res.hasMore;
+      if (S.keys.length + res.keys.length > MAX_KEYS_LIMIT) {
+        const remaining = MAX_KEYS_LIMIT - S.keys.length;
+        S.keys.push(...res.keys.slice(0, remaining));
+        S.cursor = res.cursor;
+        S.hasMore = false;
+        S.keysLimitReached = true;
+        toast(`Key limit (${MAX_KEYS_LIMIT}) reached. Please use a more specific search pattern.`, 'warning');
+      } else {
+        S.keys.push(...res.keys);
+        S.cursor = res.cursor;
+        S.hasMore = res.hasMore;
+      }
       const cacheKey = `${S.currentDb}:${S.searchPattern}`;
       saveDbCache(cacheKey);
       renderKeyList();
