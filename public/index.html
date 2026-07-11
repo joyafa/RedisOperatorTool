@@ -362,6 +362,7 @@ select option{background:var(--sidebar);color:var(--text)}
       <div class="panel-header">
         <h2>Keys</h2>
         <span class="key-count" id="keyCount">0 keys</span>
+        <button class="btn btn-sm btn-secondary" id="btnRefresh" onclick="refreshKeys(true)" title="Refresh keys from server" style="padding:4px 12px;font-size:16px">↻</button>
         <div class="search-wrap">
           <span class="search-icon">&#128269;</span>
           <input type="text" id="searchInput" placeholder="输入 key 名称查找，支持 * 模糊匹配" value="*">
@@ -546,6 +547,7 @@ const S = {
   autoLoading: false,
   isUserInteracting: false,
   pendingRender: false,
+  dbCache: {},
 };
 
 const API = '/api';
@@ -675,6 +677,7 @@ async function handleDisconnect() {
     S.keys = [];
     S.cursor = 0;
     S.selectedKeys.clear();
+    S.dbCache = {};
     updateConnStatus(false);
     renderKeyList();
     renderDetail();
@@ -775,9 +778,7 @@ function applyTypeFilter() {
 /* ================================================================
    Key List
 ================================================================ */
-async function refreshKeys() {
-  S.keys = [];
-  S.cursor = 0;
+async function refreshKeys(force = false) {
   S.selectedKeys.clear();
   S.currentKey = null;
   S.currentData = null;
@@ -789,25 +790,68 @@ async function refreshKeys() {
   }
   S.searchPattern = pattern;
 
-  try {
-    const res = await apiCall('/keys', { connId: S.connId, pattern, cursor: 0, count: 100 });
-    if (res.success) {
-      S.keys = res.keys;
-      S.cursor = res.cursor;
-      S.hasMore = res.hasMore;
-      if (S.hasMore) {
-        S.autoLoading = true;
-        scheduleNextBatch();
-      }
-    } else {
-      toast(`Failed to load keys: ${res.message}`, 'error');
+  const cacheKey = `${S.currentDb}:${pattern}`;
+  
+  if (!force && S.dbCache[cacheKey] && !isCacheExpired(cacheKey)) {
+    const cache = S.dbCache[cacheKey];
+    S.keys = cache.keys || [];
+    S.cursor = cache.cursor || 0;
+    S.hasMore = cache.hasMore || false;
+    toast(`Loaded ${S.keys.length} keys from cache`, 'info');
+  } else {
+    if (force) {
+      clearDbCache(S.currentDb);
     }
-  } catch (err) {
-    toast(`Error loading keys: ${err.message}`, 'error');
+    S.keys = [];
+    S.cursor = 0;
+    S.hasMore = false;
+    
+    try {
+      const res = await apiCall('/keys', { connId: S.connId, pattern, cursor: 0, count: 100 });
+      if (res.success) {
+        S.keys = res.keys;
+        S.cursor = res.cursor;
+        S.hasMore = res.hasMore;
+        saveDbCache(cacheKey);
+        if (S.hasMore) {
+          S.autoLoading = true;
+          scheduleNextBatch();
+        }
+      } else {
+        toast(`Failed to load keys: ${res.message}`, 'error');
+      }
+    } catch (err) {
+      toast(`Error loading keys: ${err.message}`, 'error');
+    }
   }
 
   renderKeyList();
   renderDetail();
+}
+
+const CACHE_TTL = 300000;
+
+function saveDbCache(cacheKey) {
+  if (!S.dbCache[cacheKey]) {
+    S.dbCache[cacheKey] = {};
+  }
+  S.dbCache[cacheKey].keys = [...S.keys];
+  S.dbCache[cacheKey].cursor = S.cursor;
+  S.dbCache[cacheKey].hasMore = S.hasMore;
+  S.dbCache[cacheKey].timestamp = Date.now();
+}
+
+function isCacheExpired(cacheKey) {
+  if (!S.dbCache[cacheKey]) return true;
+  return Date.now() - S.dbCache[cacheKey].timestamp > CACHE_TTL;
+}
+
+function clearDbCache(db) {
+  for (const key of Object.keys(S.dbCache)) {
+    if (key.startsWith(`${db}:`)) {
+      delete S.dbCache[key];
+    }
+  }
 }
 
 function scheduleNextBatch() {
@@ -827,6 +871,8 @@ function scheduleNextBatch() {
         S.keys.push(...res.keys);
         S.cursor = res.cursor;
         S.hasMore = res.hasMore;
+        const cacheKey = `${S.currentDb}:${S.searchPattern}`;
+        saveDbCache(cacheKey);
         
         if (!S.pendingRender) {
           S.pendingRender = true;
@@ -864,6 +910,8 @@ async function loadMoreKeys() {
       S.keys.push(...res.keys);
       S.cursor = res.cursor;
       S.hasMore = res.hasMore;
+      const cacheKey = `${S.currentDb}:${S.searchPattern}`;
+      saveDbCache(cacheKey);
       renderKeyList();
     }
   } catch (err) {
@@ -1745,6 +1793,7 @@ function deleteKey(key) {
       const res = await apiCall('/del', { connId: S.connId, keys: [key] });
       if (res.success) {
         toast(`Key "${key}" deleted`, 'success');
+        clearDbCache(S.currentDb);
         if (S.currentKey === key) {
           S.currentKey = null;
           S.currentData = null;
@@ -1914,6 +1963,7 @@ function batchDelete() {
       const res = await apiCall('/del', { connId: S.connId, keys: [...S.selectedKeys] });
       if (res.success) {
         toast(`Deleted ${res.deleted} key(s)`, 'success');
+        clearDbCache(S.currentDb);
         S.selectedKeys.clear();
         document.getElementById('selectAll').checked = false;
         await refreshKeys();
